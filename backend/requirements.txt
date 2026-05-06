@@ -10,3 +10,4 @@ argon2-cffi>=21.3.0
 yfinance>=0.2.0
 requests>=2.31.0
 cryptography>=40.0.0
+pydantic[email]>=2.0.0
