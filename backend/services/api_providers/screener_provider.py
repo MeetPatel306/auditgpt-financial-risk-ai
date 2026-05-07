@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import re
 from io import StringIO
+from html import unescape
 from typing import Any
 
 import pandas as pd
@@ -33,6 +34,41 @@ def _safe_num(value: Any) -> float | None:
         return float(text)
     except Exception:
         return None
+
+
+def _extract_number(text: str) -> float | None:
+    match = re.search(r'<span class="number">([^<]+)</span>', text)
+    return _safe_num(unescape(match.group(1))) if match else None
+
+
+def _top_ratios(html: str) -> dict[str, float]:
+    ratios: dict[str, float] = {}
+    top_match = re.search(r'<ul id="top-ratios">(.*?)</ul>', html, flags=re.S)
+    if not top_match:
+        return ratios
+
+    for item in re.findall(r"<li\b.*?</li>", top_match.group(1), flags=re.S):
+        name_match = re.search(r'<span class="name">\s*(.*?)\s*</span>', item, flags=re.S)
+        if not name_match:
+            continue
+        name = _clean_label(re.sub(r"<.*?>", "", name_match.group(1)))
+        value = _extract_number(item)
+        if value is not None:
+            ratios[name] = value
+    return ratios
+
+
+def _extract_title(html: str, symbol: str) -> str:
+    match = re.search(r'<h1[^>]*>(.*?)</h1>', html, flags=re.S)
+    if not match:
+        return symbol
+    return unescape(re.sub(r"<.*?>", "", match.group(1))).strip() or symbol
+
+
+def _extract_classification(html: str, title: str) -> str | None:
+    pattern = rf'title="{re.escape(title)}">\s*([^<]+)\s*</a>'
+    match = re.search(pattern, html, flags=re.S)
+    return unescape(match.group(1)).strip() if match else None
 
 
 def _year_from_column(column: Any) -> int | None:
@@ -69,11 +105,29 @@ def _find_table(tables: list[pd.DataFrame], required_labels: tuple[str, ...]) ->
 
 
 def _fetch_tables(symbol: str) -> list[pd.DataFrame]:
+    html = _fetch_html(symbol)
+    if not html:
+        return []
+
+    try:
+        return pd.read_html(StringIO(html))
+    except Exception:
+        return []
+
+
+def _base_symbol(symbol: str) -> str:
     base = (symbol or "").upper().strip()
     if ":" in base:
         base = base.split(":", 1)[1]
     if base.endswith(".NS") or base.endswith(".BO") or base.endswith(".BSE"):
         base = base.rsplit(".", 1)[0]
+    return base
+
+
+def _fetch_html(symbol: str) -> str:
+    base = _base_symbol(symbol)
+    if not base:
+        return ""
 
     urls = [
         f"{BASE_URL}/{base}/consolidated/",
@@ -84,12 +138,46 @@ def _fetch_tables(symbol: str) -> list[pd.DataFrame]:
             response = requests.get(url, headers=HEADERS, timeout=12)
             if response.status_code != 200 or "Company not found" in response.text:
                 continue
-            tables = pd.read_html(StringIO(response.text))
-            if tables:
-                return tables
+            return response.text
         except Exception:
             continue
-    return []
+    return ""
+
+
+def fetch_profile(symbol: str) -> dict:
+    """
+    Fetch market/profile ratios from Screener.in top-ratios section.
+    """
+    html = _fetch_html(symbol)
+    if not html:
+        return {}
+
+    ratios = _top_ratios(html)
+    base = _base_symbol(symbol)
+    market_cap_cr = ratios.get("market cap")
+    dividend_yield_pct = ratios.get("dividend yield")
+    roe_pct = ratios.get("roe")
+    high_low = re.search(
+        r"High / Low.*?<span class=\"number\">([^<]+)</span>\s*/\s*<span class=\"number\">([^<]+)</span>",
+        html,
+        flags=re.S,
+    )
+
+    return {
+        "longName": _extract_title(html, base),
+        "shortName": _extract_title(html, base),
+        "sector": _extract_classification(html, "Sector"),
+        "industry": _extract_classification(html, "Industry"),
+        "trailingPE": ratios.get("stock p/e"),
+        "marketCap": market_cap_cr * CRORE_TO_INR if market_cap_cr is not None else None,
+        "currentPrice": ratios.get("current price"),
+        "fiftyTwoWeekHigh": _safe_num(high_low.group(1)) if high_low else None,
+        "fiftyTwoWeekLow": _safe_num(high_low.group(2)) if high_low else None,
+        "dividendYield": dividend_yield_pct / 100 if dividend_yield_pct is not None else None,
+        "bookValue": ratios.get("book value"),
+        "returnOnEquity": roe_pct / 100 if roe_pct is not None else None,
+        "source": "screener",
+    }
 
 
 def fetch_financials(symbol: str, limit: int = 10) -> list[dict]:

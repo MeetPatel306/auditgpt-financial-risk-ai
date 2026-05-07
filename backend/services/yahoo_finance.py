@@ -18,7 +18,7 @@ from services.peer_comparison import build_comparison
 from services.fraud_engine import compute_fraud_score
 from services.auditor_sentiment import analyze_auditor_sentiment
 from services.financial_service import get_company_financials
-from services.api_providers import fmp_provider
+from services.api_providers import screener_provider
 
 
 # ── FIX 1: DVR Symbol Map ─────────────────────────────────────────────────────
@@ -48,8 +48,8 @@ def _resolve_dvr(symbol: str) -> tuple[str, bool]:
 def _provider_error_message(exc: Exception) -> str:
     msg = str(exc) or exc.__class__.__name__
     if "Too Many Requests" in msg or "Rate limited" in msg or "429" in msg:
-        return "Financial data provider is rate-limited. Using estimated fallback data for now."
-    return "Financial data provider is temporarily unavailable. Using estimated fallback data for now."
+        return "Yahoo profile data is rate-limited. Using alternate NSE sources where available."
+    return "Yahoo profile data is temporarily unavailable. Using alternate NSE sources where available."
 
 
 def _company_name_from_nse(symbol: str) -> str:
@@ -247,6 +247,7 @@ def fetch_company_data(nse_symbol: str) -> dict:
     # FIX 1: Check data quality — try BSE fallback if NS fails
     quality = _check_data_quality(ticker)
     data_warning = None
+    yahoo_quality_warning = None
     used_bse_fallback = False
 
     if quality == "no_data":
@@ -259,19 +260,19 @@ def fetch_company_data(nse_symbol: str) -> dict:
             used_bse_fallback = True
             data_warning = "Data sourced from BSE (NSE data unavailable for this symbol)."
         else:
-            data_warning = (
+            yahoo_quality_warning = (
                 "No financial data available for this symbol. "
                 "This may be an SME-listed, recently IPO'd, or suspended company."
             )
 
     if quality == "partial":
-        data_warning = (
-            "Only 2–3 years of financial data available. "
+        yahoo_quality_warning = (
+            "Only 2-3 years of financial data available. "
             "This company may be recently listed. Fraud score accuracy is reduced."
         )
     elif quality == "insufficient":
-        data_warning = (
-            "Less than 2 years of data available — fraud score not reliable. "
+        yahoo_quality_warning = (
+            "Less than 2 years of data available. Fraud score is less reliable. "
             "Check back after the next annual result."
         )
 
@@ -284,11 +285,11 @@ def fetch_company_data(nse_symbol: str) -> dict:
 
     # --- Company Info ---
     info, info_warning = _safe_ticker_info(ticker)
-    if info_warning:
+    screener_profile = screener_provider.fetch_profile(resolved_symbol)
+    if screener_profile:
+        info = _merge_missing_info(info, screener_profile)
+    elif info_warning:
         data_warning = info_warning if not data_warning else f"{data_warning} {info_warning}"
-    fmp_profile = fmp_provider.fetch_profile(resolved_symbol)
-    if fmp_profile:
-        info = _merge_missing_info(info, fmp_profile)
 
     company_name    = info.get("longName") or info.get("shortName") or _company_name_from_nse(nse_symbol)
     sector          = info.get("sector", "N/A")
@@ -322,6 +323,18 @@ def fetch_company_data(nse_symbol: str) -> dict:
         )
         data_warning = fallback_warning if not data_warning else f"{data_warning} {fallback_warning}"
         quality = "estimated"
+    elif not financial_payload.get("estimated"):
+        available_years = int(financial_payload.get("available_years") or 0)
+        if available_years >= 4:
+            quality = "good"
+        elif available_years >= 2:
+            quality = "partial"
+            if yahoo_quality_warning and not data_warning:
+                data_warning = yahoo_quality_warning
+        elif available_years >= 1:
+            quality = "insufficient"
+            if yahoo_quality_warning and not data_warning:
+                data_warning = yahoo_quality_warning
 
     # financial_service keeps rows newest-first for cache refreshes. The fraud
     # engine and charts expect oldest -> newest so growth and "latest" are sane.
@@ -336,6 +349,11 @@ def fetch_company_data(nse_symbol: str) -> dict:
     cashflow_data = [_safe_val(row.get("cashFlow")) for row in merged_financials]
     ebitda_data   = [_safe_val(row.get("ebitda")) for row in merged_financials]
     assets_data   = [_safe_val(row.get("assets")) for row in merged_financials]
+    if profit_margin is None:
+        latest_revenue_for_margin = next((v for v in reversed(revenue_data) if v), None)
+        latest_profit_for_margin = next((v for v in reversed(profit_data) if v is not None), None)
+        if latest_revenue_for_margin and latest_profit_for_margin is not None:
+            profit_margin = latest_profit_for_margin / latest_revenue_for_margin
     expense_data  = [
         (revenue_data[i] - profit_data[i]) if (revenue_data[i] is not None and profit_data[i] is not None) else None
         for i in range(len(years))
