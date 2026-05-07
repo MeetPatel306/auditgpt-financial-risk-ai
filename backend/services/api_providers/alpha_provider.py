@@ -21,6 +21,24 @@ def _safe_num(value: Any) -> float | None:
         return None
 
 
+def _candidate_symbols(symbol: str) -> list[str]:
+    clean = (symbol or "").upper().strip()
+    if not clean:
+        return []
+    base = clean.split(":", 1)[1] if clean.startswith("NSE:") else clean
+    if base.endswith(".BSE") or base.endswith(".NSE"):
+        base = base.rsplit(".", 1)[0]
+    return list(dict.fromkeys([clean, f"{base}.BSE", f"{base}.NSE", base]))
+
+
+def _fetch_report(function: str, symbol: str, api_key: str) -> dict:
+    params = {"function": function, "symbol": symbol, "apikey": api_key}
+    resp = requests.get(ALPHA_BASE_URL, params=params, timeout=10)
+    resp.raise_for_status()
+    data = resp.json()
+    return data if isinstance(data, dict) else {}
+
+
 def fetch_financials(symbol: str, limit: int = 10) -> list[dict]:
     """
     Alpha Vantage annual reports fallback.
@@ -29,20 +47,19 @@ def fetch_financials(symbol: str, limit: int = 10) -> list[dict]:
     if not api_key:
         return []
 
-    try:
-        params = {"function": "INCOME_STATEMENT", "symbol": symbol, "apikey": api_key}
-        inc = requests.get(ALPHA_BASE_URL, params=params, timeout=10).json()
-        params["function"] = "BALANCE_SHEET"
-        bal = requests.get(ALPHA_BASE_URL, params=params, timeout=10).json()
-        params["function"] = "CASH_FLOW"
-        csh = requests.get(ALPHA_BASE_URL, params=params, timeout=10).json()
+    for candidate in _candidate_symbols(symbol):
+        try:
+            inc = _fetch_report("INCOME_STATEMENT", candidate, api_key)
+            income_reports = inc.get("annualReports", [])
+            if not income_reports:
+                continue
+            bal = _fetch_report("BALANCE_SHEET", candidate, api_key)
+            csh = _fetch_report("CASH_FLOW", candidate, api_key)
+        except Exception:
+            continue
 
-        income_reports = inc.get("annualReports", []) if isinstance(inc, dict) else []
         balance_reports = bal.get("annualReports", []) if isinstance(bal, dict) else []
         cash_reports = csh.get("annualReports", []) if isinstance(csh, dict) else []
-
-        if not income_reports:
-            return []
 
         balance_by_year = {
             int(item["fiscalDateEnding"][:4]): item
@@ -74,5 +91,5 @@ def fetch_financials(symbol: str, limit: int = 10) -> list[dict]:
                 }
             )
         return out
-    except Exception:
-        return []
+
+    return []

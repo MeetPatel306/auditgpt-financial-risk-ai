@@ -21,6 +21,6 @@ def map_symbol(raw_symbol: str) -> ProviderSymbols:
     return ProviderSymbols(
         nse=f"NSE:{base}",
         yahoo=f"{base}.NS",
-        fmp=base,
-        alpha=f"NSE:{base}",
+        fmp=f"{base}.NS",
+        alpha=f"{base}.BSE",
     )

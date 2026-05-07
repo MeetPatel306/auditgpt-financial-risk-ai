@@ -18,6 +18,7 @@ from services.peer_comparison import build_comparison
 from services.fraud_engine import compute_fraud_score
 from services.auditor_sentiment import analyze_auditor_sentiment
 from services.financial_service import get_company_financials
+from services.api_providers import fmp_provider
 
 
 # ── FIX 1: DVR Symbol Map ─────────────────────────────────────────────────────
@@ -68,6 +69,16 @@ def _safe_ticker_info(ticker_obj) -> tuple[dict, str | None]:
         return ticker_obj.info or {}, None
     except Exception as exc:
         return {}, _provider_error_message(exc)
+
+
+def _merge_missing_info(primary: dict, fallback: dict) -> dict:
+    merged = dict(primary or {})
+    for key, value in (fallback or {}).items():
+        if key == "source":
+            continue
+        if merged.get(key) in (None, "", "N/A") and value not in (None, "", "N/A"):
+            merged[key] = value
+    return merged
 
 
 def _estimated_financial_payload(symbol: str, max_years: int = 10) -> dict:
@@ -275,6 +286,9 @@ def fetch_company_data(nse_symbol: str) -> dict:
     info, info_warning = _safe_ticker_info(ticker)
     if info_warning:
         data_warning = info_warning if not data_warning else f"{data_warning} {info_warning}"
+    fmp_profile = fmp_provider.fetch_profile(resolved_symbol)
+    if fmp_profile:
+        info = _merge_missing_info(info, fmp_profile)
 
     company_name    = info.get("longName") or info.get("shortName") or _company_name_from_nse(nse_symbol)
     sector          = info.get("sector", "N/A")
