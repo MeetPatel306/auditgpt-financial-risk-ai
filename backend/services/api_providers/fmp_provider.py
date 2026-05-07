@@ -6,7 +6,7 @@ from typing import Any
 import requests
 
 
-FMP_BASE_URL = "https://financialmodelingprep.com/api/v3"
+FMP_BASE_URL = "https://financialmodelingprep.com/stable"
 
 
 def _safe_num(value: Any) -> float | None:
@@ -54,16 +54,19 @@ def fetch_financials(symbol: str, limit: int = 10) -> list[dict]:
         return []
 
     for candidate in _candidate_symbols(symbol):
-        balance_url = f"{FMP_BASE_URL}/balance-sheet-statement/{candidate}"
-        cash_url = f"{FMP_BASE_URL}/cash-flow-statement/{candidate}"
-        params = {"period": "annual", "limit": max(limit, 10), "apikey": api_key}
+        params = {
+            "symbol": candidate,
+            "period": "annual",
+            "limit": max(limit, 10),
+            "apikey": api_key,
+        }
 
         try:
-            income = _get_json(f"{FMP_BASE_URL}/income-statement/{candidate}", params)
+            income = _get_json(f"{FMP_BASE_URL}/income-statement", params)
             if not _is_usable_statement(income):
                 continue
-            balance = _get_json(balance_url, params)
-            cash = _get_json(cash_url, params)
+            balance = _get_json(f"{FMP_BASE_URL}/balance-sheet-statement", params)
+            cash = _get_json(f"{FMP_BASE_URL}/cash-flow-statement", params)
         except Exception:
             continue
 
@@ -108,7 +111,7 @@ def fetch_profile(symbol: str) -> dict:
 
     for candidate in _candidate_symbols(symbol):
         try:
-            data = _get_json(f"{FMP_BASE_URL}/profile/{candidate}", {"apikey": api_key})
+            data = _get_json(f"{FMP_BASE_URL}/profile", {"symbol": candidate, "apikey": api_key})
         except Exception:
             continue
 
@@ -122,7 +125,7 @@ def fetch_profile(symbol: str) -> dict:
             "sector": row.get("sector"),
             "industry": row.get("industry"),
             "trailingPE": _safe_num(row.get("pe")),
-            "marketCap": _safe_num(row.get("mktCap")),
+            "marketCap": _safe_num(row.get("marketCap") or row.get("mktCap")),
             "currentPrice": _safe_num(row.get("price")),
             "beta": _safe_num(row.get("beta")),
             "lastDividend": _safe_num(row.get("lastDiv")),

@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime, timedelta
 from typing import Any
 
-from services.api_providers import alpha_provider, fmp_provider, yahoo_provider
+from services.api_providers import alpha_provider, fmp_provider, screener_provider, yahoo_provider
 from utils.symbol_mapper import map_symbol
 
 
@@ -99,6 +99,7 @@ def get_company_financials(symbol: str, max_years: int = 10) -> dict:
             latest_errors: list[str] = []
             for name, call in (
                 ("yahoo", lambda: yahoo_provider.fetch_financials(mapped.yahoo, limit=2)),
+                ("screener", lambda: screener_provider.fetch_financials(mapped.nse, limit=2)),
                 ("fmp", lambda: fmp_provider.fetch_financials(mapped.fmp, limit=2)),
                 ("alpha", lambda: alpha_provider.fetch_financials(mapped.alpha, limit=2)),
             ):
@@ -108,7 +109,7 @@ def get_company_financials(symbol: str, max_years: int = 10) -> dict:
                     latest_rows.append([])
                     latest_errors.append(f"{name}:{exc}")
 
-            latest_merged, _ = _merge_by_priority(latest_rows, ["yahoo", "fmp", "alpha"], max_years=2)
+            latest_merged, _ = _merge_by_priority(latest_rows, ["yahoo", "screener", "fmp", "alpha"], max_years=2)
             latest = _extract_latest(latest_merged)
             if not latest:
                 payload = dict(cached["payload"])
@@ -129,6 +130,7 @@ def get_company_financials(symbol: str, max_years: int = 10) -> dict:
 
     for name, call in (
         ("yahoo", lambda: yahoo_provider.fetch_financials(mapped.yahoo, limit=max_years)),
+        ("screener", lambda: screener_provider.fetch_financials(mapped.nse, limit=max_years)),
         ("fmp", lambda: fmp_provider.fetch_financials(mapped.fmp, limit=max_years)),
         ("alpha", lambda: alpha_provider.fetch_financials(mapped.alpha, limit=max_years)),
     ):
@@ -141,7 +143,7 @@ def get_company_financials(symbol: str, max_years: int = 10) -> dict:
             rows_list.append([])
             errors.append(f"{name}:{exc}")
 
-    merged, provenance = _merge_by_priority(rows_list, ["yahoo", "fmp", "alpha"], max_years=max_years)
+    merged, provenance = _merge_by_priority(rows_list, ["yahoo", "screener", "fmp", "alpha"], max_years=max_years)
     if not merged:
         return {"success": False, "message": "Data unavailable", "errors": errors, "financials": []}
 
