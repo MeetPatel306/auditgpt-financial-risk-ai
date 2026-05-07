@@ -95,13 +95,27 @@ def get_company_financials(symbol: str, max_years: int = 10) -> dict:
 
         # Between 1 day and 7 days: refresh only latest-year values.
         if age < _HISTORICAL_TTL:
-            latest_rows = [
-                yahoo_provider.fetch_financials(mapped.yahoo, limit=2),
-                fmp_provider.fetch_financials(mapped.fmp, limit=2),
-                alpha_provider.fetch_financials(mapped.alpha, limit=2),
-            ]
+            latest_rows: list[list[dict]] = []
+            latest_errors: list[str] = []
+            for name, call in (
+                ("yahoo", lambda: yahoo_provider.fetch_financials(mapped.yahoo, limit=2)),
+                ("fmp", lambda: fmp_provider.fetch_financials(mapped.fmp, limit=2)),
+                ("alpha", lambda: alpha_provider.fetch_financials(mapped.alpha, limit=2)),
+            ):
+                try:
+                    latest_rows.append(call() or [])
+                except Exception as exc:
+                    latest_rows.append([])
+                    latest_errors.append(f"{name}:{exc}")
+
             latest_merged, _ = _merge_by_priority(latest_rows, ["yahoo", "fmp", "alpha"], max_years=2)
             latest = _extract_latest(latest_merged)
+            if not latest:
+                payload = dict(cached["payload"])
+                payload["cache_mode"] = "stale-cache"
+                payload["provider_failures"] = list(payload.get("provider_failures", [])) + latest_errors
+                return payload
+
             refreshed_rows = _upsert_latest(cached["payload"]["financials"], latest)
             payload = dict(cached["payload"])
             payload["financials"] = refreshed_rows[:max_years]
