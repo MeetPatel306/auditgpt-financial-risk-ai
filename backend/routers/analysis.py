@@ -148,15 +148,26 @@ async def analyze_company(
     except HTTPException:
         raise
     except ValueError as e:
-        if "Data unavailable" in str(e):
+        error_str = str(e)
+        is_financials_error = (
+            "Data unavailable" in error_str
+            or "Financial statements unavailable" in error_str
+            or "unavailable" in error_str.lower()
+        )
+        if is_financials_error:
             live_data = get_live_price(matched["symbol"])
             return {
                 "success": False,
-                "message": "Data unavailable",
+                "message": (
+                    "Financial statements are currently unavailable for this company. "
+                    "This is common for companies with limited history on connected providers. "
+                    "Live market price is shown below."
+                ),
                 "nse_symbol": matched["symbol"],
                 "company_name": matched.get("name", matched["symbol"]),
                 "live_only": bool(live_data),
                 "live_price": live_data or None,
+                "financial_statement_error": "FINANCIAL_STATEMENT_UNAVAILABLE",
             }
         raise
     except Exception as e:

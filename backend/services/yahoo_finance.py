@@ -8,14 +8,17 @@ FIXED VERSION — All 7 fixes applied:
 """
 
 import yfinance as yf
+import logging
 import math
 import requests
 from datetime import datetime
 from services.sector_map import get_similar_companies
 from services.peer_comparison import build_comparison
-from services.fraud_engine import compute_fraud_score
+from services.fraud_engine import compute_fraud_score, validate_risk_inputs
 from services.auditor_sentiment import analyze_auditor_sentiment
 from services.financial_service import get_company_financials
+
+logger = logging.getLogger("auditgpt.yahoo_finance")
 
 
 # ── FIX 1: DVR Symbol Map ─────────────────────────────────────────────────────
@@ -92,43 +95,19 @@ def _check_data_quality(ticker_obj) -> str:
         return "no_data"
 
 
-# ── FIX 4: Live NSE Price Feed ────────────────────────────────────────────────
-def _fetch_live_nse_price(symbol: str) -> dict:
+# ── Fix 4 (revised): Canonical live_price service delegation ──────────────────
+def _get_live_price_data(symbol: str) -> dict:
     """
-    Fetch live price data from NSE India unofficial API.
-    Returns price dict or empty dict if unavailable.
+    Delegate to the canonical live_price service which handles:
+      - NSE primary source with proper HTTP 403 / WAF block classification
+      - Automatic yfinance fallback with correct data_type and price_status labels
+      - In-memory caching
+      - Structured diagnostic logging (never logs API keys)
+
+    Replaces the old _fetch_live_nse_price() which silently swallowed 403 errors.
     """
-    try:
-        headers = {
-            "User-Agent": "Mozilla/5.0",
-            "Accept": "application/json",
-            "Referer": "https://www.nseindia.com/",
-        }
-        session = requests.Session()
-        # First hit NSE homepage to get cookies
-        session.get("https://www.nseindia.com", headers=headers, timeout=5)
-        url = f"https://www.nseindia.com/api/quote-equity?symbol={symbol}"
-        resp = session.get(url, headers=headers, timeout=5)
-        if resp.status_code == 200:
-            data = resp.json()
-            price_info = data.get("priceInfo", {})
-            metadata   = data.get("metadata", {})
-            return {
-                "live_price":        _safe_val(price_info.get("lastPrice")),
-                "day_change":        _safe_val(price_info.get("change")),
-                "day_change_pct":    _safe_val(price_info.get("pChange")),
-                "day_high":          _safe_val(price_info.get("intraDayHighLow", {}).get("max")),
-                "day_low":           _safe_val(price_info.get("intraDayHighLow", {}).get("min")),
-                "week52_high":       _safe_val(price_info.get("weekHighLow", {}).get("max")),
-                "week52_low":        _safe_val(price_info.get("weekHighLow", {}).get("min")),
-                "volume":            _safe_val(metadata.get("totalTradedVolume")),
-                "avg_volume":        _safe_val(metadata.get("cmAdjHighLow", {}).get("value")),
-                "last_updated":      datetime.utcnow().isoformat(),
-                "volume_anomaly":    False,  # computed below
-            }
-    except Exception as e:
-        print(f"NSE live price fetch failed for {symbol}: {e}")
-    return {}
+    from services.live_price import get_live_price  # local import avoids circular at module load
+    return get_live_price(symbol)
 
 
 def _detect_volume_anomaly(live_data: dict) -> dict:
@@ -142,47 +121,45 @@ def _detect_volume_anomaly(live_data: dict) -> dict:
     return live_data
 
 
-# ── Main Fetch Function ───────────────────────────────────────────────────────
-def fetch_company_data(nse_symbol: str) -> dict:
-    """
-    Fetch real financial data from Yahoo Finance for an NSE-listed company.
-    FIXED: DVR resolution, 10-year data, live price, quality warnings.
-    """
-    # FIX 1: Resolve DVR to parent
-    resolved_symbol, is_dvr = _resolve_dvr(nse_symbol)
-    ticker_symbol = f"{resolved_symbol}.NS"
-    ticker = yf.Ticker(ticker_symbol)
+def _quality_from_years(year_count: int) -> str:
+    if year_count >= 4:
+        return "good"
+    if year_count >= 2:
+        return "partial"
+    if year_count >= 1:
+        return "insufficient"
+    return "no_data"
 
-    # FIX 1: Check data quality — try BSE fallback if NS fails
-    quality = _check_data_quality(ticker)
-    data_warning = None
+
+# ── Main Fetch Function ───────────────────────────────────────────────────────
+def fetch_company_data(nse_symbol: str, resolved: dict | None = None) -> dict:
+    """
+    Fetch financial + market data for an NSE-listed company.
+    `resolved` is optional metadata from SymbolResolver (yahoo tickers, notes, listings).
+    """
+    resolved = resolved or {}
+    resolved_symbol, is_dvr = _resolve_dvr(nse_symbol)
+    if resolved.get("symbol"):
+        resolved_symbol = resolved["symbol"]
+        is_dvr = bool(resolved.get("is_dvr")) or is_dvr
+
+    yahoo_quote = resolved.get("yahoo_symbol") or f"{resolved_symbol}.NS"
+    yahoo_financials = resolved.get("yahoo_financial_symbols") or [yahoo_quote]
+    ticker = yf.Ticker(yahoo_quote)
+
+    data_warning = resolved.get("notes")
     used_bse_fallback = False
+    quality = _check_data_quality(ticker)
 
     if quality == "no_data":
-        # Try BSE suffix as fallback
         ticker_bse = yf.Ticker(f"{resolved_symbol}.BO")
         quality_bse = _check_data_quality(ticker_bse)
         if quality_bse != "no_data":
             ticker = ticker_bse
             quality = quality_bse
             used_bse_fallback = True
-            data_warning = "Data sourced from BSE (NSE data unavailable for this symbol)."
-        else:
-            data_warning = (
-                "No financial data available for this symbol. "
-                "This may be an SME-listed, recently IPO'd, or suspended company."
-            )
-
-    if quality == "partial":
-        data_warning = (
-            "Only 2–3 years of financial data available. "
-            "This company may be recently listed. Fraud score accuracy is reduced."
-        )
-    elif quality == "insufficient":
-        data_warning = (
-            "Less than 2 years of data available — fraud score not reliable. "
-            "Check back after the next annual result."
-        )
+            bse_note = "Company profile sourced from BSE (NSE Yahoo profile unavailable for this symbol)."
+            data_warning = bse_note if not data_warning else f"{data_warning} {bse_note}"
 
     if is_dvr:
         dvr_note = (
@@ -194,7 +171,12 @@ def fetch_company_data(nse_symbol: str) -> dict:
     # --- Company Info ---
     info = ticker.info or {}
 
-    company_name    = info.get("longName") or info.get("shortName") or nse_symbol
+    company_name    = (
+        resolved.get("company_name")
+        or info.get("longName")
+        or info.get("shortName")
+        or nse_symbol
+    )
     sector          = info.get("sector", "N/A")
     industry        = info.get("industry", "N/A")
     pe_ratio        = _safe_val(info.get("trailingPE"))
@@ -209,17 +191,18 @@ def fetch_company_data(nse_symbol: str) -> dict:
     roe             = _safe_val(info.get("returnOnEquity"))
     profit_margin   = _safe_val(info.get("profitMargins"))
 
-    # FIX 4: Fetch live NSE price (overrides Yahoo static price)
-    live_price_data = _fetch_live_nse_price(resolved_symbol)
+    # FIX 4 (revised): Use canonical live_price service (handles NSE → yfinance fallback internally)
+    live_price_data = _get_live_price_data(resolved_symbol)
     live_price_data = _detect_volume_anomaly(live_price_data)
     if live_price_data.get("live_price"):
         current_price = live_price_data["live_price"]
 
     # --- Multi-provider annual financial statements (up to 10 years) ---
-    financial_payload = get_company_financials(resolved_symbol, max_years=10)
-    if not financial_payload.get("success"):
-        raise ValueError("Data unavailable")
-
+    financial_payload = get_company_financials(
+        resolved_symbol,
+        max_years=10,
+        yahoo_symbols=yahoo_financials,
+    )
     merged_financials = financial_payload.get("financials", [])
     years         = [str(row["year"]) for row in merged_financials]
     revenue_data  = [_safe_val(row.get("revenue")) for row in merged_financials]
@@ -233,18 +216,62 @@ def fetch_company_data(nse_symbol: str) -> dict:
         for i in range(len(years))
     ]
 
+    quality = _quality_from_years(len(years))
+    if quality == "partial":
+        hist_note = (
+            "Only 2–3 years of financial data are available. "
+            "Fraud score accuracy is reduced."
+        )
+        data_warning = hist_note if not data_warning else f"{data_warning} {hist_note}"
+    elif quality == "insufficient":
+        hist_note = (
+            "Less than 2 years of financial data are available — fraud score is not reliable."
+        )
+        data_warning = hist_note if not data_warning else f"{data_warning} {hist_note}"
+    elif quality == "no_data":
+        hist_note = (
+            "No usable annual financial statements were returned. "
+            "Market quotes may still be available."
+        )
+        data_warning = hist_note if not data_warning else f"{data_warning} {hist_note}"
+
+    input_check = validate_risk_inputs(revenue_data, profit_data, debt_data, cashflow_data)
+    analysis_status = "completed"
+    if not input_check["can_score"]:
+        analysis_status = "unavailable_financials"
+    elif input_check["status"] == "limited" or quality in {"partial", "insufficient"}:
+        analysis_status = "completed_limited"
+
+    if not financial_payload.get("success") and not merged_financials:
+        errors = financial_payload.get("provider_failures") or financial_payload.get("errors") or []
+        error_summary = "; ".join(errors) if errors else "All providers returned empty data"
+        logger.warning(
+            "[yahoo_finance] FINANCIAL_STATEMENT_UNAVAILABLE | Symbol: %s | Yahoo tried: %s | Reason: %s",
+            resolved_symbol, yahoo_financials, error_summary,
+        )
+
     # --- Fraud Detection Engine ---
-    fraud_result    = compute_fraud_score(
-        revenue=revenue_data, profit=profit_data,
-        debt=debt_data, cashflow=cashflow_data,
-        pe=pe_ratio, roe=roe, beta=beta,
-    )
-    risk_score      = fraud_result["fraud_score"]
-    risk_flags      = fraud_result["reason_strings"]
-    risk_reasons    = fraud_result["reasons"]
-    score_breakdown = fraud_result["score_breakdown"]
-    risk_level      = fraud_result["risk_level"]
-    risk_color      = fraud_result["risk_color"]
+    if input_check["can_score"]:
+        fraud_result    = compute_fraud_score(
+            revenue=revenue_data, profit=profit_data,
+            debt=debt_data, cashflow=cashflow_data,
+            pe=pe_ratio, roe=roe, beta=beta,
+        )
+        risk_score      = fraud_result["fraud_score"]
+        risk_flags      = fraud_result["reason_strings"]
+        risk_reasons    = fraud_result["reasons"]
+        score_breakdown = fraud_result["score_breakdown"]
+        risk_level      = fraud_result["risk_level"]
+        risk_color      = fraud_result["risk_color"]
+        if input_check["reason"]:
+            risk_flags = [input_check["reason"]] + risk_flags
+    else:
+        risk_score = None
+        risk_flags = [input_check["reason"] or "Required financial statements are missing."]
+        risk_reasons = []
+        score_breakdown = {}
+        risk_level = "UNAVAILABLE"
+        risk_color = "#94a3b8"
 
     # FIX 4: Volume anomaly adds a red flag automatically
     if live_price_data.get("volume_anomaly"):
@@ -284,8 +311,8 @@ def fetch_company_data(nse_symbol: str) -> dict:
         if profit is not None and profit < 0:
             is_anomaly = True
 
-        revenue_trend.append({"month": yr, "value": rev or 0, "anomaly": is_anomaly})
-        expense_trend.append({"month": yr, "value": exp or 0, "anomaly": is_anomaly})
+        revenue_trend.append({"month": yr, "value": rev, "anomaly": is_anomaly})
+        expense_trend.append({"month": yr, "value": exp, "anomaly": is_anomaly})
 
     anomaly_flags = [
         {"month": item["month"], "type": "Revenue/profit anomaly detected"}
@@ -305,18 +332,27 @@ def fetch_company_data(nse_symbol: str) -> dict:
         debt=debt_data, cashflow=cashflow_data,
     )
 
-    latest_revenue  = revenue_data[-1]  if revenue_data  and revenue_data[-1]  else 0
-    latest_expenses = expense_data[-1]  if expense_data  and expense_data[-1]  else 0
+    latest_revenue  = next((v for v in reversed(revenue_data) if v is not None), None)
+    latest_expenses = next((v for v in reversed(expense_data) if v is not None), None)
 
     similar      = get_similar_companies(nse_symbol, sector, count=5)
     peer_symbols = [c["symbol"] for c in similar[:5]]
 
     result = {
+        "success":          analysis_status != "unavailable_financials" or bool(live_price_data),
+        "analysis_status":  analysis_status,
         "company_name":     company_name,
+        "requested_symbol": resolved.get("requested_symbol") or nse_symbol,
         "nse_symbol":       resolved_symbol,
+        "resolved_symbol":  resolved_symbol,
+        "yahoo_symbol":     yahoo_quote,
+        "exchange":         resolved.get("exchange") or "NSE",
+        "listings":         resolved.get("listings") or [],
+        "alternatives":     resolved.get("alternatives") or [],
         "original_symbol":  nse_symbol,
         "is_dvr":           is_dvr,
-        "analyzed_at":      datetime.utcnow().isoformat(),
+        "analyzed_at":      datetime.utcnow().isoformat() + "Z",
+        "retrieval_timestamp": datetime.utcnow().isoformat() + "Z",
         "fraud_score":      risk_score,
         "risk_level":       risk_level,
         "risk_color":       risk_color,
@@ -332,8 +368,18 @@ def fetch_company_data(nse_symbol: str) -> dict:
         "used_bse_fallback": used_bse_fallback,
         # FIX 3: 10y data (up to what Yahoo provides)
         "data_years_available": len(years),
+        "financial_statement_available": bool(merged_financials),
+        "financial_statement_periods": financial_payload.get("period_coverage", {}),
+        "missing_required_fields": financial_payload.get("required_missing_fields", []),
+        "missing_fields": financial_payload.get("missing_fields", []),
+        "input_validation": input_check,
         "financial_data_sources": financial_payload.get("providers_used", []),
+        "yahoo_symbols_tried": financial_payload.get("yahoo_symbols_tried", yahoo_financials),
         "provider_failures": financial_payload.get("provider_failures", []),
+        "provider_error_category": (
+            None if merged_financials else "FINANCIAL_STATEMENT_UNAVAILABLE"
+        ),
+        "live_only": analysis_status == "unavailable_financials",
         "financials": {
             "total_revenue":       latest_revenue,
             "total_expenses":      latest_expenses,
@@ -506,6 +552,7 @@ def _generate_summary(name, risk_level, score, flags, revenue, profit,
         "HIGH":     f"🟠 HIGH RISK: {name} has significant warning signs — caution strongly advised.",
         "MODERATE": f"🟡 MODERATE RISK: {name} has some concerns — monitor closely before investing.",
         "LOW":      f"🟢 LOW RISK: {name} shows a generally healthy financial profile — routine monitoring advised.",
+        "UNAVAILABLE": f"⚪ ANALYSIS UNAVAILABLE: {name} does not have the annual statements required to compute a fraud score.",
     }
     tldr = tldr_map.get(risk_level, tldr_map["MODERATE"])
 
@@ -576,6 +623,7 @@ def _generate_summary(name, risk_level, score, flags, revenue, profit,
         "HIGH":     "⚠️ Investor Action: INVESTIGATE — get audited financials and management explanation before any position.",
         "MODERATE": "👁️ Investor Action: WATCH — hold if already invested, but do not increase exposure without monitoring.",
         "LOW":      "✅ Investor Action: SAFE to consider — continue routine monitoring of quarterly results.",
+        "UNAVAILABLE": "ℹ️ Investor Action: WAIT — obtain annual statements before relying on a numeric risk score.",
     }
     action = action_map.get(risk_level, action_map["MODERATE"])
 

@@ -21,6 +21,16 @@ def _safe_num(value: Any) -> float | None:
         return None
 
 
+def _candidates(symbol: str) -> list[str]:
+    base = (symbol or "").strip()
+    if not base:
+        return []
+    out = [base]
+    if not base.endswith(".NS"):
+        out.append(f"{base}.NS")
+    return out
+
+
 def fetch_financials(symbol: str, limit: int = 10) -> list[dict]:
     """
     Fetch annual financials from Financial Modeling Prep.
@@ -29,40 +39,60 @@ def fetch_financials(symbol: str, limit: int = 10) -> list[dict]:
     if not api_key:
         return []
 
-    try:
-        income_url = f"{FMP_BASE_URL}/income-statement/{symbol}"
-        balance_url = f"{FMP_BASE_URL}/balance-sheet-statement/{symbol}"
-        cash_url = f"{FMP_BASE_URL}/cash-flow-statement/{symbol}"
-        params = {"period": "annual", "limit": max(limit, 10), "apikey": api_key}
-
-        income = requests.get(income_url, params=params, timeout=10).json()
-        balance = requests.get(balance_url, params=params, timeout=10).json()
-        cash = requests.get(cash_url, params=params, timeout=10).json()
-
-        if not isinstance(income, list):
-            return []
-
-        balance_by_year = {int(r["calendarYear"]): r for r in balance if isinstance(r, dict) and r.get("calendarYear")}
-        cash_by_year = {int(r["calendarYear"]): r for r in cash if isinstance(r, dict) and r.get("calendarYear")}
-
-        out: list[dict] = []
-        for row in income[:limit]:
-            if not isinstance(row, dict) or not row.get("calendarYear"):
-                continue
-            year = int(row["calendarYear"])
-            bal = balance_by_year.get(year, {})
-            csh = cash_by_year.get(year, {})
-            out.append(
-                {
-                    "year": year,
-                    "revenue": _safe_num(row.get("revenue")),
-                    "netIncome": _safe_num(row.get("netIncome")),
-                    "ebitda": _safe_num(row.get("ebitda")),
-                    "assets": _safe_num(bal.get("totalAssets")),
-                    "debt": _safe_num(bal.get("totalDebt") or bal.get("longTermDebt")),
-                    "cashFlow": _safe_num(csh.get("operatingCashFlow")),
-                }
-            )
-        return out
-    except Exception:
+    last_error = None
+    for candidate in _candidates(symbol):
+        try:
+            rows = _fetch_one(candidate, api_key, limit)
+            if rows:
+                return rows
+        except Exception as exc:
+            last_error = exc
+            continue
+    if last_error:
         return []
+    return []
+
+
+def _fetch_one(symbol: str, api_key: str, limit: int) -> list[dict]:
+    income_url = f"{FMP_BASE_URL}/income-statement/{symbol}"
+    balance_url = f"{FMP_BASE_URL}/balance-sheet-statement/{symbol}"
+    cash_url = f"{FMP_BASE_URL}/cash-flow-statement/{symbol}"
+    params = {"period": "annual", "limit": max(limit, 10), "apikey": api_key}
+
+    income = requests.get(income_url, params=params, timeout=10).json()
+    balance = requests.get(balance_url, params=params, timeout=10).json()
+    cash = requests.get(cash_url, params=params, timeout=10).json()
+
+    if not isinstance(income, list):
+        return []
+
+    balance_by_year = {
+        int(r["calendarYear"]): r
+        for r in (balance if isinstance(balance, list) else [])
+        if isinstance(r, dict) and r.get("calendarYear")
+    }
+    cash_by_year = {
+        int(r["calendarYear"]): r
+        for r in (cash if isinstance(cash, list) else [])
+        if isinstance(r, dict) and r.get("calendarYear")
+    }
+
+    out: list[dict] = []
+    for row in income[:limit]:
+        if not isinstance(row, dict) or not row.get("calendarYear"):
+            continue
+        year = int(row["calendarYear"])
+        bal = balance_by_year.get(year, {})
+        csh = cash_by_year.get(year, {})
+        out.append(
+            {
+                "year": year,
+                "revenue": _safe_num(row.get("revenue")),
+                "netIncome": _safe_num(row.get("netIncome")),
+                "ebitda": _safe_num(row.get("ebitda")),
+                "assets": _safe_num(bal.get("totalAssets")),
+                "debt": _safe_num(bal.get("totalDebt") or bal.get("longTermDebt")),
+                "cashFlow": _safe_num(csh.get("operatingCashFlow")),
+            }
+        )
+    return out

@@ -746,7 +746,7 @@ export default function Dashboard() {
                 </div>
               </div>
               <Suspense fallback={<SkeletonCard height={64} />}>
-                <LivePriceTicker symbol={data.nse_symbol} />
+                <LivePriceTicker symbol={data.nse_symbol} companyName={data.company_name} />
               </Suspense>
             </div>
           </div>
@@ -848,7 +848,7 @@ export default function Dashboard() {
                 {/* ─── Live Price strip (full-width, OUTSIDE the 2-col grid) ─── */}
                 <div className="live-price-row">
                   <Suspense fallback={<SkeletonCard height={64} />}>
-                    <LivePriceTicker symbol={data.nse_symbol} />
+                    <LivePriceTicker symbol={data.nse_symbol} companyName={data.company_name} />
                   </Suspense>
                 </div>
 

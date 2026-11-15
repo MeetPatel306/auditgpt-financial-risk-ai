@@ -13,6 +13,12 @@ export default defineConfig({
       '/auth': {
         target: 'http://localhost:8000',
         changeOrigin: true,
+        bypass(req) {
+          // Let the React app handle the OAuth redirect page.
+          if (req.url && req.url.startsWith('/auth/google/callback')) {
+            return '/index.html'
+          }
+        },
       }
     }
   },

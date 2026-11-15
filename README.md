@@ -9,12 +9,11 @@ AuditGPT is a full-stack financial risk analysis platform that helps users revie
 ![FastAPI](https://img.shields.io/badge/FastAPI-0.111-009688?style=flat-square)
 ![MongoDB](https://img.shields.io/badge/MongoDB-Ready-47a248?style=flat-square)
 
-
 ## Deployment
 
 The frontend is deployed on Vercel:
 
-```text
+````text
 https://auditgpt-financial-risk-ai-yylt.vercel.app/
 ``
 
@@ -22,7 +21,7 @@ https://auditgpt-financial-risk-ai-yylt.vercel.app/
 
 AuditGPT combines a React dashboard with a FastAPI backend to analyze company-level financial risk. The application focuses on fraud scoring, red-flag detection, auditor sentiment, regulatory alerts, live market context, peer comparison, portfolio tracking, and downloadable audit reports.
 
-## Key Features
+## Key Features 
 
 - AI-assisted fraud risk scoring with clear risk levels
 - Company search with NSE company data support
@@ -59,8 +58,10 @@ AuditGPT combines a React dashboard with a FastAPI backend to analyze company-le
 
 ```bash
 cd backend
-python -m venv venv
+# Python 3.11 or 3.12 recommended
+python3.12 -m venv venv  # or: python3 -m venv venv
 source venv/bin/activate
+pip install --upgrade pip
 pip install -r requirements.txt
 uvicorn main:app --reload --port 8000
 ```
@@ -93,13 +94,32 @@ http://localhost:5173
 
 ## Environment Variables
 
-Create a `.env` file inside the `backend` folder for local configuration:
+Copy the example files, then fill in real values. Do not commit secrets.
+
+Backend `backend/.env`:
 
 ```env
 MONGODB_URL=mongodb://localhost:27017
 DB_NAME=auditgpt
-JWT_SECRET_KEY=your_secret_key
+JWT_SECRET=replace-with-a-strong-random-secret
+GOOGLE_CLIENT_ID=your-google-client-id.apps.googleusercontent.com
+GOOGLE_CLIENT_SECRET=your-google-client-secret
 ```
+
+Frontend `frontend/.env`:
+
+```env
+VITE_API_URL=
+VITE_GOOGLE_CLIENT_ID=your-google-client-id.apps.googleusercontent.com
+VITE_GOOGLE_REDIRECT_URI=http://localhost:5173/auth/google/callback
+```
+
+`VITE_GOOGLE_CLIENT_ID` must match `GOOGLE_CLIENT_ID`. Restart Vite after changing frontend env vars.
+
+Google Cloud Console (Web application OAuth client):
+
+- Authorized JavaScript origins: `http://localhost:5173`
+- Authorized redirect URIs: `http://localhost:5173/auth/google/callback`
 
 Add any third-party financial API keys only in local environment files or hosting provider environment settings. Do not commit secrets to GitHub.
 

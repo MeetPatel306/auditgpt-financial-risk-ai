@@ -1,7 +1,8 @@
-import { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { useState, useEffect } from 'react'
+import { Link, useNavigate, Navigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { loginUserApi } from '../utils/api'
+import GoogleSignInButton from '../components/GoogleSignInButton'
 
 export default function LoginPage() {
   const [email, setEmail] = useState('')
@@ -9,15 +10,38 @@ export default function LoginPage() {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
-  const { loginUser } = useAuth()
+  const { loginUser, user, loading: authLoading } = useAuth()
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+
+  // Show errors forwarded from GoogleCallbackPage (e.g. user cancelled OAuth)
+  useEffect(() => {
+    const oauthError = searchParams.get('error')
+    if (oauthError) {
+      setError(decodeURIComponent(oauthError))
+    }
+  }, [searchParams])
+
+  // Redirect already-authenticated users to dashboard
+  if (!authLoading && user) {
+    return <Navigate to="/" replace />
+  }
 
   async function handleSubmit(e) {
     e.preventDefault()
     setError('')
+    const trimmedEmail = email.trim()
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) {
+      setError('Please enter a valid email address.')
+      return
+    }
+    if (!password) {
+      setError('Password is required.')
+      return
+    }
     setLoading(true)
     try {
-      const data = await loginUserApi(email, password)
+      const data = await loginUserApi(trimmedEmail, password)
       loginUser(data.access_token, data.user)
       navigate('/', { replace: true })
     } catch (err) {
@@ -68,6 +92,19 @@ export default function LoginPage() {
 
         {/* Form card */}
         <div className="auth-card fade-in-up fade-in-up-delay-1">
+
+          {/* ── Google Sign-In ── */}
+          <GoogleSignInButton
+            label="Continue with Google"
+            textType="continue_with"
+            disabled={loading}
+            onError={setError}
+          />
+
+          <div className="auth-divider">
+            <span>OR SIGN IN WITH EMAIL</span>
+          </div>
+
           <form onSubmit={handleSubmit}>
             {error && (
               <div className="auth-error">
@@ -94,6 +131,7 @@ export default function LoginPage() {
                   value={email}
                   onChange={e => setEmail(e.target.value)}
                   required
+                  disabled={loading}
                   autoComplete="email"
                 />
               </div>
@@ -114,6 +152,7 @@ export default function LoginPage() {
                   value={password}
                   onChange={e => setPassword(e.target.value)}
                   required
+                  disabled={loading}
                   autoComplete="current-password"
                 />
                 <button
@@ -160,8 +199,8 @@ export default function LoginPage() {
             </button>
           </form>
 
-          <div className="auth-divider">
-            <span>OR</span>
+          <div className="auth-divider" style={{ margin: '20px 0 16px' }}>
+            <span>NEW HERE?</span>
           </div>
 
           <p className="auth-switch">
@@ -172,7 +211,7 @@ export default function LoginPage() {
 
         {/* Footer */}
         <p className="auth-footer fade-in-up fade-in-up-delay-2">
-          AI-Powered Financial Fraud Detection & Risk Intelligence
+          AI-Powered Financial Fraud Detection &amp; Risk Intelligence
         </p>
       </div>
     </div>

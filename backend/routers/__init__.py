@@ -5,6 +5,7 @@ from . import portfolio
 from . import alerts
 from . import history
 from . import saved_portfolio
+from . import live_price
 
 __all__ = [
     "analysis",
@@ -14,4 +15,5 @@ __all__ = [
     "alerts",
     "history",
     "saved_portfolio",
+    "live_price",
 ]
