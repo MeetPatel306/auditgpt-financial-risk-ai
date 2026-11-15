@@ -24,16 +24,18 @@ AuditGPT combines a React dashboard with a FastAPI backend to analyze company-le
 ## Key Features 
 
 - AI-assisted fraud risk scoring with clear risk levels
-- Company search with NSE company data support
+- Up to 10 years of historical daily market data (OHLCV) with date ranges (1M, 3M, 6M, 1Y, 3Y, 5Y, 10Y, MAX) for all NSE-listed companies
+- Robust Symbol Resolution & Demerger routing (handles Tata Motors TMCV/TMPV, DVR shares, aliases, and corporate actions)
+- Company search with full NSE master dataset (~1,400+ listed equities)
 - Revenue, expense, and anomaly visualizations
 - Red-flag detection for suspicious financial patterns
 - Auditor sentiment and regulatory alert insights
 - Peer comparison and similar company analysis
 - Live price ticker and market context
-- Authentication-protected dashboard pages
+- Authentication-protected dashboard pages with JWT and Google OAuth 2.0
 - Saved portfolio and analysis history workflows
 - Downloadable PDF audit report generation
-- MongoDB-ready backend for persistence
+- MongoDB persistence with automated compound indexing and incremental sync
 - Docker Compose support for local full-stack development
 
 ## Tech Stack
@@ -61,9 +63,7 @@ cd backend
 # Python 3.11 or 3.12 recommended
 python3.12 -m venv venv  # or: python3 -m venv venv
 source venv/bin/activate
-pip install --upgrade pip
-pip install -r requirements.txt
-uvicorn main:app --reload --port 8000
+1
 ```
 
 Backend API:
@@ -152,6 +152,40 @@ Example response fields:
   "financials": {}
 }
 ```
+
+## 10-Year Historical Market Data & Symbol Registry
+
+AuditGPT stores up to 10 years of daily historical OHLCV records for all currently listed NSE companies in MongoDB.
+
+### Architecture & Endpoints
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/market-data/{symbol}/history?period=10y` | GET | Retrieve stored OHLCV price history (supports `1m`, `3m`, `6m`, `1y`, `3y`, `5y`, `10y`, `max`) |
+| `/api/market-data/{symbol}/meta` | GET | Retrieve metadata (records count, earliest/latest date) |
+| `/api/market-data/sync/{symbol}` | POST | Trigger on-demand sync for a single company (Authenticated) |
+| `/api/market-data/sync-all` | POST | Trigger background batch sync for all ~1,400+ NSE companies (Authenticated) |
+| `/api/market-data/sync-status` | GET | Check progress and results of the most recent sync job |
+
+### Batch Sync via CLI
+
+To trigger a full sync across all NSE equities:
+
+```bash
+curl -X POST http://localhost:8000/api/market-data/sync-all \
+  -H "Authorization: Bearer <YOUR_JWT_TOKEN>"
+```
+
+Check status:
+
+```bash
+curl http://localhost:8000/api/market-data/sync-status
+```
+
+### Note on Provider Limitations
+
+- **OHLCV Market History:** Yahoo Finance provides full 10-year daily trading records with split and dividend adjustments for all eligible companies.
+- **Financial Statements:** `yfinance` financial statements (`income_stmt`, `balance_sheet`, `cashflow`) provide up to 4–5 fiscal years of accounting data according to Yahoo Finance's published statement limits. For newer listings or demerged entities (e.g. `TMCV.NS`), available records reflect actual trading history since listing.
 
 ## Docker Setup
 

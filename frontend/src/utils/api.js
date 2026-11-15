@@ -367,3 +367,45 @@ export async function getMarketStatus() {
   }
   return response.json()
 }
+
+/* ── Historical Market Data APIs (up to 10 years) ─────────────── */
+
+export async function getHistoricalPrices(symbol, period = '10y') {
+  if (!symbol) throw new Error('Symbol is required')
+  const sym = encodeURIComponent(symbol.trim().toUpperCase())
+  const p = encodeURIComponent(period.toLowerCase())
+  const response = await fetch(`${API_BASE}/api/market-data/${sym}/history?period=${p}`)
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}))
+    const msg = Array.isArray(err.detail) ? err.detail[0].msg : (err.detail || `Failed to fetch history for ${symbol}`)
+    throw new Error(msg)
+  }
+  return response.json()
+}
+
+export async function syncHistoricalPrices(symbol) {
+  if (!symbol) throw new Error('Symbol is required')
+  const token = localStorage.getItem('auditgpt_token')
+  const headers = { 'Content-Type': 'application/json' }
+  if (token) headers['Authorization'] = `Bearer ${token}`
+
+  const sym = encodeURIComponent(symbol.trim().toUpperCase())
+  const response = await fetch(`${API_BASE}/api/market-data/sync/${sym}`, {
+    method: 'POST',
+    headers,
+  })
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}))
+    const msg = Array.isArray(err.detail) ? err.detail[0].msg : (err.detail || `Sync failed for ${symbol}`)
+    throw new Error(msg)
+  }
+  return response.json()
+}
+
+export async function getSyncStatus() {
+  const response = await fetch(`${API_BASE}/api/market-data/sync-status`)
+  if (!response.ok) {
+    throw new Error('Failed to fetch sync status')
+  }
+  return response.json()
+}

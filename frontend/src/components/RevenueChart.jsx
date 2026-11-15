@@ -10,6 +10,7 @@ const TABS = [
   { key: 'revenue',   label: 'Revenue'          },
   { key: 'profit',    label: 'Profit'           },
   { key: 'debt',      label: 'Debt & Cash Flow' },
+  { key: 'bs',        label: 'Balance Sheet'    },
 ]
 
 function CustomTooltip({ active, payload, label }) {
@@ -60,16 +61,24 @@ export default function RevenueChart({ data }) {
   const profit   = data.profit_10y   || []
   const debt     = data.debt_10y     || []
   const cashflow = data.cashflow_10y || []
+  const assets   = data.assets_10y   || []
+  const liabilities = data.liabilities_10y || []
+  const fcf      = data.free_cashflow_10y || []
+  const cash     = data.cash_10y     || []
 
   // FIX 3: Use null for missing values so Recharts skips them gracefully
   // instead of rendering 0 bars which is misleading
   const chartData = years.map((yr, i) => ({
-    year:     yr,
-    Revenue:  revenue[i]  ?? null,
-    Profit:   profit[i]   ?? null,
-    Debt:     debt[i]     ?? null,
-    CashFlow: cashflow[i] ?? null,
-    anomaly:  data.revenue_trend?.[i]?.anomaly || false,
+    year:        yr,
+    Revenue:     revenue[i]     ?? null,
+    Profit:      profit[i]      ?? null,
+    Debt:        debt[i]        ?? null,
+    CashFlow:    cashflow[i]    ?? null,
+    FreeCashFlow: fcf[i]        ?? null,
+    Assets:      assets[i]      ?? null,
+    Liabilities: liabilities[i] ?? null,
+    Cash:        cash[i]        ?? null,
+    anomaly:     data.revenue_trend?.[i]?.anomaly || false,
   }))
 
   // FIX 3: Dynamic year range label
@@ -186,14 +195,25 @@ export default function RevenueChart({ data }) {
               <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(255,255,255,0.025)' }} />
               <Area type="monotone" dataKey="Profit" stroke="#6366F1" strokeWidth={2.5} fill="url(#prfGrad)" dot={{ fill: '#6366F1', r: 3.5, strokeWidth: 0 }} connectNulls={false} />
             </ComposedChart>
+          ) : tab === 'debt' ? (
+            <ComposedChart data={chartData} margin={{ top: 4, right: 4, left: -10, bottom: 0 }}>
+              <CartesianGrid stroke="#1e2d42" strokeDasharray="3 3" vertical={false} />
+              <XAxis dataKey="year" tick={axisStyle} axisLine={{ stroke: '#1e2d42' }} tickLine={false} />
+              <YAxis tick={axisStyle} axisLine={false} tickLine={false} tickFormatter={v => formatCurrency(v)} />
+              <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(255,255,255,0.025)' }} />
+              <Line type="monotone" dataKey="Debt"         stroke="#f97316" strokeWidth={2.5} dot={{ fill: '#f97316', r: 3.5 }} connectNulls={false} />
+              <Line type="monotone" dataKey="CashFlow"     stroke="#a855f7" strokeWidth={2.5} dot={{ fill: '#a855f7', r: 3.5 }} connectNulls={false} />
+              <Line type="monotone" dataKey="FreeCashFlow" stroke="#06b6d4" strokeWidth={2} strokeDasharray="4 4" dot={{ fill: '#06b6d4', r: 3 }} connectNulls={false} />
+            </ComposedChart>
           ) : (
             <ComposedChart data={chartData} margin={{ top: 4, right: 4, left: -10, bottom: 0 }}>
               <CartesianGrid stroke="#1e2d42" strokeDasharray="3 3" vertical={false} />
               <XAxis dataKey="year" tick={axisStyle} axisLine={{ stroke: '#1e2d42' }} tickLine={false} />
               <YAxis tick={axisStyle} axisLine={false} tickLine={false} tickFormatter={v => formatCurrency(v)} />
               <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(255,255,255,0.025)' }} />
-              <Line type="monotone" dataKey="Debt"     stroke="#f97316" strokeWidth={2.5} dot={{ fill: '#f97316', r: 3.5 }} connectNulls={false} />
-              <Line type="monotone" dataKey="CashFlow" stroke="#a855f7" strokeWidth={2.5} dot={{ fill: '#a855f7', r: 3.5 }} connectNulls={false} />
+              <Bar dataKey="Assets"      fill="#3b82f6" fillOpacity={0.6} radius={[3,3,0,0]} maxBarSize={22} />
+              <Bar dataKey="Liabilities" fill="#ef4444" fillOpacity={0.6} radius={[3,3,0,0]} maxBarSize={22} />
+              <Line type="monotone" dataKey="Cash" stroke="#10b981" strokeWidth={2} dot={{ fill: '#10b981', r: 3 }} connectNulls={false} />
             </ComposedChart>
           )}
         </ResponsiveContainer>
@@ -201,7 +221,16 @@ export default function RevenueChart({ data }) {
 
       {/* Legend */}
       <div style={{ display: 'flex', gap: 14, marginTop: 12, flexWrap: 'wrap' }}>
-        {[['Revenue','#22c55e'], ['Profit','#6366F1'], ['Debt','#f97316'], ['Cash Flow','#a855f7']].map(([l, c]) => (
+        {[
+          ['Revenue', '#22c55e'],
+          ['Profit', '#6366F1'],
+          ['Debt', '#f97316'],
+          ['Cash Flow', '#a855f7'],
+          ['FCF', '#06b6d4'],
+          ['Assets', '#3b82f6'],
+          ['Liabilities', '#ef4444'],
+          ['Cash', '#10b981'],
+        ].map(([l, c]) => (
           <div key={l} style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
             <div style={{ width: 8, height: 8, borderRadius: 2, background: c }} />
             <span style={{ color: 'var(--text-muted)', fontSize: '0.65rem', fontFamily: 'JetBrains Mono' }}>{l}</span>

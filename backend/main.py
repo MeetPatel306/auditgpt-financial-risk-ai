@@ -22,8 +22,18 @@ from routers import (
     history,
     saved_portfolio,
     live_price,
+    market_data,
 )
-from database import users_collection, analyses_collection, portfolios_collection, get_client, close_client, DB_NAME
+from database import (
+    users_collection,
+    analyses_collection,
+    portfolios_collection,
+    price_history_collection,
+    sync_jobs_collection,
+    get_client,
+    close_client,
+    DB_NAME,
+)
 from services.nse_validator import refresh_nse_list_from_website
 
 # ── Structured logging ────────────────────────────────────────────────────────
@@ -56,6 +66,12 @@ async def lifespan(app: FastAPI):
         await analyses_collection.create_index([("userId", 1), ("createdAt", -1)])
         # One portfolio document per user
         await portfolios_collection.create_index("userId", unique=True)
+        # Unique compound index for price history (symbol + date) to prevent duplicates
+        await price_history_collection.create_index([("symbol", 1), ("date", 1)], unique=True)
+        await price_history_collection.create_index([("symbol", 1), ("date", -1)])
+        # Index on sync jobs
+        await sync_jobs_collection.create_index([("job_id", 1)], unique=True)
+        await sync_jobs_collection.create_index([("started_at", -1)])
     except Exception:
         logger.exception(
             "MongoDB is unavailable during startup; authentication will return 503 until it is reachable."
@@ -92,6 +108,7 @@ app.include_router(alerts.router,             prefix="/api")
 app.include_router(history.router,            prefix="/api")
 app.include_router(saved_portfolio.router,    prefix="/api")
 app.include_router(live_price.router,         prefix="/api")
+app.include_router(market_data.router,        prefix="/api")
 
 
 @app.get("/")

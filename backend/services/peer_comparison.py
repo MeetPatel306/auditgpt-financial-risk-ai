@@ -52,6 +52,7 @@ def build_input_company_metrics(data: dict) -> dict:
     profit = data.get("profit_10y", [])
     debt = data.get("debt_10y", [])
     cashflow = data.get("cashflow_10y", [])
+    fcf = data.get("free_cashflow_10y", [])
     info = data.get("company_info", {})
 
     return {
@@ -62,6 +63,7 @@ def build_input_company_metrics(data: dict) -> dict:
         "profit_growth": _growth_pct(profit),
         "debt_ratio": _debt_ratio(debt, revenue),
         "latest_cashflow": _latest(cashflow),
+        "latest_fcf": _latest(fcf),
         "latest_revenue": _latest(revenue),
         "latest_profit": _latest(profit),
         "market_cap": info.get("market_cap"),
@@ -70,6 +72,7 @@ def build_input_company_metrics(data: dict) -> dict:
         "roe": info.get("roe"),
         "risk_score": data.get("fraud_score"),
         "risk_level": data.get("risk_level"),
+        "history_years": len(data.get("years", [])),
     }
 
 
@@ -108,11 +111,14 @@ def fetch_peer_metrics(nse_symbol: str) -> dict | None:
         # Cashflow
         cf = ticker.cashflow
         cf_list = []
+        fcf_list = []
         if cf is not None and not cf.empty:
             cols = list(reversed(cf.columns))
             for col in cols:
                 ocf = _safe(cf.loc["Operating Cash Flow", col]) if "Operating Cash Flow" in cf.index else None
+                fcf = _safe(cf.loc["Free Cash Flow", col]) if "Free Cash Flow" in cf.index else None
                 cf_list.append(ocf)
+                fcf_list.append(fcf)
 
         # Compute risk score (simplified)
         risk_score = 25
@@ -146,6 +152,7 @@ def fetch_peer_metrics(nse_symbol: str) -> dict | None:
             "profit_growth": _growth_pct(profit_list),
             "debt_ratio": dr,
             "latest_cashflow": _latest(cf_list),
+            "latest_fcf": _latest(fcf_list),
             "latest_revenue": _latest(revenue_list),
             "latest_profit": _latest(profit_list),
             "market_cap": _safe(info.get("marketCap")),
@@ -154,6 +161,7 @@ def fetch_peer_metrics(nse_symbol: str) -> dict | None:
             "roe": round(_safe(info.get("returnOnEquity")) * 100, 2) if _safe(info.get("returnOnEquity")) else None,
             "risk_score": risk_score,
             "risk_level": risk_level,
+            "history_years": len(revenue_list),
         }
     except Exception as e:
         print(f"Error fetching peer {nse_symbol}: {e}")
@@ -201,6 +209,7 @@ def _compute_highlights(companies: list[dict]) -> dict:
         "lowest_debt": _best("debt_ratio", False),
         "lowest_profit": _best("latest_profit", False),
         "best_profit_margin": _best("profit_margin", True),
+        "best_fcf": _best("latest_fcf", True),
         "highest_market_cap": _best("market_cap", True),
         "lowest_risk": _best("risk_score", False),
         "highest_risk": _best("risk_score", True),

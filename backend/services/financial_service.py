@@ -19,7 +19,17 @@ _CACHE: dict[str, dict[str, Any]] = {}
 _LOCKS: dict[str, threading.Lock] = {}
 _LOCKS_GUARD = threading.Lock()
 
-FIELDS = ("revenue", "netIncome", "ebitda", "assets", "debt", "cashFlow")
+FIELDS = (
+    "revenue",
+    "netIncome",
+    "ebitda",
+    "assets",
+    "liabilities",
+    "debt",
+    "cash",
+    "cashFlow",
+    "freeCashFlow",
+)
 REQUIRED_FOR_ANALYSIS = ("revenue", "netIncome")
 
 

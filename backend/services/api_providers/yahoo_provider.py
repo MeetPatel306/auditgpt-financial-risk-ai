@@ -18,12 +18,27 @@ INCOME_NET = [
 ]
 INCOME_EBITDA = ["EBITDA", "Normalized EBITDA", "Ebitda"]
 BALANCE_ASSETS = ["Total Assets", "TotalAssets"]
+BALANCE_LIABILITIES = [
+    "Total Liabilities Net Minority Interest",
+    "Total Liabilities",
+    "TotalLiabilitiesNetMinorityInterest",
+]
 BALANCE_DEBT = ["Total Debt", "Long Term Debt", "TotalDebt", "Net Debt"]
+BALANCE_CASH = [
+    "Cash And Cash Equivalents",
+    "Cash Cash Equivalents And Short Term Investments",
+    "Cash Equivalents",
+    "Cash Financial",
+]
 CASH_FLOW = [
     "Operating Cash Flow",
     "Cash Flow From Continuing Operating Activities",
     "OperatingCashFlow",
     "Total Cash From Operating Activities",
+]
+FREE_CASH_FLOW = [
+    "Free Cash Flow",
+    "FreeCashFlow",
 ]
 
 
@@ -180,8 +195,11 @@ def fetch_financials(symbol: str, limit: int = 10) -> list[dict]:
                 "netIncome": _read_metric(income_stmt, INCOME_NET, inc_col),
                 "ebitda": _read_metric(income_stmt, INCOME_EBITDA, inc_col),
                 "assets": _read_metric(balance_sheet, BALANCE_ASSETS, bal_col),
+                "liabilities": _read_metric(balance_sheet, BALANCE_LIABILITIES, bal_col),
                 "debt": _read_metric(balance_sheet, BALANCE_DEBT, bal_col),
+                "cash": _read_metric(balance_sheet, BALANCE_CASH, bal_col),
                 "cashFlow": _read_metric(cashflow_stmt, CASH_FLOW, cf_col),
+                "freeCashFlow": _read_metric(cashflow_stmt, FREE_CASH_FLOW, cf_col),
                 "source_ticker": symbol,
             }
         )

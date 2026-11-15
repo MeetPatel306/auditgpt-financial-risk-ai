@@ -18,6 +18,7 @@ from services.nse_validator import (
     classify_symbol,
     refresh_nse_list_from_website,
 )
+from services.symbol_resolver import resolve_symbol, search_symbols, AmbiguousResolution, ResolvedSymbol
 from services.live_price import get_live_price
 from database import analyses_collection
 
@@ -55,13 +56,59 @@ async def analyze_company(
     if not request.company_name.strip():
         raise HTTPException(status_code=400, detail="Company name is required")
 
-    # FIX 1: Validate and classify the symbol
+    # FIX 1: Validate and classify the symbol using robust symbol resolution
     query = request.company_name.strip()
-    matched = validate_nse_company(query)
+    resolved = resolve_symbol(query)
+
+    if isinstance(resolved, AmbiguousResolution):
+        return {
+            "success": False,
+            "message": resolved.message,
+            "ambiguous": True,
+            "candidates": resolved.candidates,
+            "company_name": request.company_name,
+        }
+
+    matched = None
+    if isinstance(resolved, ResolvedSymbol):
+        matched = {
+            "symbol": resolved.symbol,
+            "name": resolved.company_name,
+            "series": resolved.series,
+            "classification": {
+                "type": "sme" if resolved.is_sme else ("dvr" if resolved.is_dvr else "normal"),
+                "is_sme": resolved.is_sme,
+                "is_dvr": resolved.is_dvr,
+                "notes": resolved.notes,
+            },
+            "resolution_notes": resolved.notes,
+            "alternatives": resolved.alternatives,
+            "listings": resolved.listings,
+        }
+
+    if not matched:
+        matched = validate_nse_company(query)
     if not matched:
         # Retry once after refreshing latest NSE list.
         refresh_nse_list_from_website()
-        matched = validate_nse_company(query)
+        resolved = resolve_symbol(query)
+        if isinstance(resolved, ResolvedSymbol):
+            matched = {
+                "symbol": resolved.symbol,
+                "name": resolved.company_name,
+                "series": resolved.series,
+                "classification": {
+                    "type": "sme" if resolved.is_sme else ("dvr" if resolved.is_dvr else "normal"),
+                    "is_sme": resolved.is_sme,
+                    "is_dvr": resolved.is_dvr,
+                    "notes": resolved.notes,
+                },
+                "resolution_notes": resolved.notes,
+                "alternatives": resolved.alternatives,
+                "listings": resolved.listings,
+            }
+        else:
+            matched = validate_nse_company(query)
 
     if not matched:
         # Graceful fallback: if symbol-like query has live market data, return it.
@@ -181,12 +228,16 @@ async def analyze_company(
 async def nse_search(q: str = ""):
     """
     Search NSE companies for autocomplete.
-    FIX 1: Now returns symbol type (normal/sme/dvr) for UI badges.
+    FIX 1: Now returns symbol type (normal/sme/dvr) for UI badges and demerger context.
     """
-    results = search_nse_companies(q, limit=8)
+    results = search_symbols(q, limit=8)
+    if not results:
+        results = search_nse_companies(q, limit=8)
     if not results and q.strip():
         refresh_nse_list_from_website()
-        results = search_nse_companies(q, limit=8)
+        results = search_symbols(q, limit=8)
+        if not results:
+            results = search_nse_companies(q, limit=8)
     return results
 
 

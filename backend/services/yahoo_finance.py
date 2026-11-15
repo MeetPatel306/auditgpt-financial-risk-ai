@@ -211,6 +211,9 @@ def fetch_company_data(nse_symbol: str, resolved: dict | None = None) -> dict:
     cashflow_data = [_safe_val(row.get("cashFlow")) for row in merged_financials]
     ebitda_data   = [_safe_val(row.get("ebitda")) for row in merged_financials]
     assets_data   = [_safe_val(row.get("assets")) for row in merged_financials]
+    liabilities_data = [_safe_val(row.get("liabilities")) for row in merged_financials]
+    cash_data     = [_safe_val(row.get("cash")) for row in merged_financials]
+    fcf_data      = [_safe_val(row.get("freeCashFlow")) for row in merged_financials]
     expense_data  = [
         (revenue_data[i] - profit_data[i]) if (revenue_data[i] is not None and profit_data[i] is not None) else None
         for i in range(len(years))
@@ -393,8 +396,11 @@ def fetch_company_data(nse_symbol: str, resolved: dict | None = None) -> dict:
         "profit_10y":    profit_data,
         "ebitda_10y":    ebitda_data,
         "assets_10y":    assets_data,
+        "liabilities_10y": liabilities_data,
         "debt_10y":      debt_data,
+        "cash_10y":      cash_data,
         "cashflow_10y":  cashflow_data,
+        "free_cashflow_10y": fcf_data,
         "company_info": {
             "sector":              sector,
             "industry":            industry,
