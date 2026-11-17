@@ -56,14 +56,34 @@ AuditGPT combines a React dashboard with a FastAPI backend to analyze company-le
 - MongoDB local instance or hosted MongoDB connection
 - Git
 
-### Backend Setup
+### Database (MongoDB) Setup
+
+Start your local MongoDB service (port 27017):
+
+```bash
+# macOS (Homebrew direct):
+/opt/homebrew/bin/mongod --config /opt/homebrew/etc/mongod.conf --fork
+
+# Or via brew services:
+brew services start mongodb-community@8.0
+
+# Linux (systemd):
+sudo systemctl start mongod
+```
+
+### Backend Setup & Running
 
 ```bash
 cd backend
 # Python 3.11 or 3.12 recommended
 python3.12 -m venv venv  # or: python3 -m venv venv
 source venv/bin/activate
-1
+
+# Install dependencies
+pip install -r requirements.txt
+
+# Start the FastAPI server with hot-reload
+uvicorn main:app --reload --port 8000
 ```
 
 Backend API:
@@ -72,17 +92,27 @@ Backend API:
 http://localhost:8000
 ```
 
-API documentation:
+API documentation (Swagger UI):
 
 ```text
 http://localhost:8000/docs
 ```
 
-### Frontend Setup
+Interactive ReDoc:
+
+```text
+http://localhost:8000/redoc
+```
+
+### Frontend Setup & Running
 
 ```bash
 cd frontend
+
+# Install dependencies
 npm install
+
+# Start the Vite development server
 npm run dev
 ```
 
@@ -90,6 +120,13 @@ Frontend app:
 
 ```text
 http://localhost:5173
+```
+
+To build the frontend for production:
+
+```bash
+cd frontend
+npm run build
 ```
 
 ## Environment Variables
