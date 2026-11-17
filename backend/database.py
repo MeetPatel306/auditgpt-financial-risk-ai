@@ -10,7 +10,7 @@ load_dotenv(dotenv_path=_BACKEND_DIR / ".env", override=False)
 load_dotenv(dotenv_path=_REPO_ROOT / ".env", override=False)
 
 MONGODB_URL = os.getenv("MONGODB_URL", "mongodb://localhost:27017")
-DB_NAME = os.getenv("DB_NAME", "auditgpt")
+DB_NAME = os.getenv("DB_NAME", "AuditGpt")
 
 _client = None
 _client_loop = None

@@ -77,7 +77,7 @@ sudo systemctl start mongod
 cd backend
 # Python 3.11 or 3.12 recommended
 python3.12 -m venv venv  # or: python3 -m venv venv
-source venv/bin/activate
+source venv/bin/activate # Windows: venv\Scripts\activate
 
 # Install dependencies
 pip install -r requirements.txt
@@ -137,7 +137,7 @@ Backend `backend/.env`:
 
 ```env
 MONGODB_URL=mongodb://localhost:27017
-DB_NAME=auditgpt
+DB_NAME=AuditGpt
 JWT_SECRET=replace-with-a-strong-random-secret
 GOOGLE_CLIENT_ID=your-google-client-id.apps.googleusercontent.com
 GOOGLE_CLIENT_SECRET=your-google-client-secret
