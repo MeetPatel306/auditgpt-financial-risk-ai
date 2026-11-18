@@ -106,6 +106,7 @@ export default function PeerComparison({ comparison }) {
       data: makeChartData('debt_ratio'),
       fmt: v => `${v}x`,
     },
+<<<<<<< HEAD
     fcf: {
       label: 'Free Cash Flow',
       subtitle: 'Latest free cash flow (₹)',
@@ -124,6 +125,8 @@ export default function PeerComparison({ comparison }) {
       data: makeChartData('profit_margin'),
       fmt: v => `${v}%`,
     },
+=======
+>>>>>>> origin/main
   }
 
   const chart = CHARTS[activeChart]

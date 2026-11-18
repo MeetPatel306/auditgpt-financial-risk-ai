@@ -5,7 +5,10 @@ from . import portfolio
 from . import alerts
 from . import history
 from . import saved_portfolio
+<<<<<<< HEAD
 from . import live_price
+=======
+>>>>>>> origin/main
 
 __all__ = [
     "analysis",
@@ -15,5 +18,8 @@ __all__ = [
     "alerts",
     "history",
     "saved_portfolio",
+<<<<<<< HEAD
     "live_price",
+=======
+>>>>>>> origin/main
 ]

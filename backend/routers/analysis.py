@@ -18,7 +18,10 @@ from services.nse_validator import (
     classify_symbol,
     refresh_nse_list_from_website,
 )
+<<<<<<< HEAD
 from services.symbol_resolver import resolve_symbol, search_symbols, AmbiguousResolution, ResolvedSymbol
+=======
+>>>>>>> origin/main
 from services.live_price import get_live_price
 from database import analyses_collection
 
@@ -56,6 +59,7 @@ async def analyze_company(
     if not request.company_name.strip():
         raise HTTPException(status_code=400, detail="Company name is required")
 
+<<<<<<< HEAD
     # FIX 1: Validate and classify the symbol using robust symbol resolution
     query = request.company_name.strip()
     resolved = resolve_symbol(query)
@@ -109,6 +113,15 @@ async def analyze_company(
             }
         else:
             matched = validate_nse_company(query)
+=======
+    # FIX 1: Validate and classify the symbol
+    query = request.company_name.strip()
+    matched = validate_nse_company(query)
+    if not matched:
+        # Retry once after refreshing latest NSE list.
+        refresh_nse_list_from_website()
+        matched = validate_nse_company(query)
+>>>>>>> origin/main
 
     if not matched:
         # Graceful fallback: if symbol-like query has live market data, return it.
@@ -195,6 +208,7 @@ async def analyze_company(
     except HTTPException:
         raise
     except ValueError as e:
+<<<<<<< HEAD
         error_str = str(e)
         is_financials_error = (
             "Data unavailable" in error_str
@@ -210,11 +224,21 @@ async def analyze_company(
                     "This is common for companies with limited history on connected providers. "
                     "Live market price is shown below."
                 ),
+=======
+        if "Data unavailable" in str(e):
+            live_data = get_live_price(matched["symbol"])
+            return {
+                "success": False,
+                "message": "Data unavailable",
+>>>>>>> origin/main
                 "nse_symbol": matched["symbol"],
                 "company_name": matched.get("name", matched["symbol"]),
                 "live_only": bool(live_data),
                 "live_price": live_data or None,
+<<<<<<< HEAD
                 "financial_statement_error": "FINANCIAL_STATEMENT_UNAVAILABLE",
+=======
+>>>>>>> origin/main
             }
         raise
     except Exception as e:
@@ -228,6 +252,7 @@ async def analyze_company(
 async def nse_search(q: str = ""):
     """
     Search NSE companies for autocomplete.
+<<<<<<< HEAD
     FIX 1: Now returns symbol type (normal/sme/dvr) for UI badges and demerger context.
     """
     results = search_symbols(q, limit=8)
@@ -238,6 +263,14 @@ async def nse_search(q: str = ""):
         results = search_symbols(q, limit=8)
         if not results:
             results = search_nse_companies(q, limit=8)
+=======
+    FIX 1: Now returns symbol type (normal/sme/dvr) for UI badges.
+    """
+    results = search_nse_companies(q, limit=8)
+    if not results and q.strip():
+        refresh_nse_list_from_website()
+        results = search_nse_companies(q, limit=8)
+>>>>>>> origin/main
     return results
 
 

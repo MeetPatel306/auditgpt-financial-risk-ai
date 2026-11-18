@@ -7,7 +7,10 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(null)
   const [token, setToken] = useState(localStorage.getItem('auditgpt_token'))
   const [loading, setLoading] = useState(true)
+<<<<<<< HEAD
   const [authError, setAuthError] = useState('')
+=======
+>>>>>>> origin/main
 
   // On mount, validate existing token
   useEffect(() => {
@@ -19,6 +22,7 @@ export function AuthProvider({ children }) {
       try {
         const userData = await getCurrentUser(token)
         setUser(userData)
+<<<<<<< HEAD
         setAuthError('')
       } catch (err) {
         if (err.message === 'Token validation failed') {
@@ -29,6 +33,13 @@ export function AuthProvider({ children }) {
         } else {
           setAuthError(err.message || 'Authentication service is temporarily unavailable.')
         }
+=======
+      } catch {
+        // Token is invalid or expired — clear it
+        localStorage.removeItem('auditgpt_token')
+        setToken(null)
+        setUser(null)
+>>>>>>> origin/main
       } finally {
         setLoading(false)
       }
@@ -46,11 +57,18 @@ export function AuthProvider({ children }) {
     localStorage.removeItem('auditgpt_token')
     setToken(null)
     setUser(null)
+<<<<<<< HEAD
     setAuthError('')
   }
 
   return (
     <AuthContext.Provider value={{ user, token, loading, authError, loginUser, logout }}>
+=======
+  }
+
+  return (
+    <AuthContext.Provider value={{ user, token, loading, loginUser, logout }}>
+>>>>>>> origin/main
       {children}
     </AuthContext.Provider>
   )

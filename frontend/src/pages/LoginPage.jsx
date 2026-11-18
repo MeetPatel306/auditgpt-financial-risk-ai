@@ -1,8 +1,15 @@
+<<<<<<< HEAD
 import { useState, useEffect } from 'react'
 import { Link, useNavigate, Navigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { loginUserApi } from '../utils/api'
 import GoogleSignInButton from '../components/GoogleSignInButton'
+=======
+import { useState } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
+import { useAuth } from '../context/AuthContext'
+import { loginUserApi } from '../utils/api'
+>>>>>>> origin/main
 
 export default function LoginPage() {
   const [email, setEmail] = useState('')
@@ -10,6 +17,7 @@ export default function LoginPage() {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
+<<<<<<< HEAD
   const { loginUser, user, loading: authLoading } = useAuth()
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
@@ -26,10 +34,15 @@ export default function LoginPage() {
   if (!authLoading && user) {
     return <Navigate to="/" replace />
   }
+=======
+  const { loginUser } = useAuth()
+  const navigate = useNavigate()
+>>>>>>> origin/main
 
   async function handleSubmit(e) {
     e.preventDefault()
     setError('')
+<<<<<<< HEAD
     const trimmedEmail = email.trim()
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) {
       setError('Please enter a valid email address.')
@@ -42,6 +55,11 @@ export default function LoginPage() {
     setLoading(true)
     try {
       const data = await loginUserApi(trimmedEmail, password)
+=======
+    setLoading(true)
+    try {
+      const data = await loginUserApi(email, password)
+>>>>>>> origin/main
       loginUser(data.access_token, data.user)
       navigate('/', { replace: true })
     } catch (err) {
@@ -92,6 +110,7 @@ export default function LoginPage() {
 
         {/* Form card */}
         <div className="auth-card fade-in-up fade-in-up-delay-1">
+<<<<<<< HEAD
 
           {/* ── Google Sign-In ── */}
           <GoogleSignInButton
@@ -105,6 +124,8 @@ export default function LoginPage() {
             <span>OR SIGN IN WITH EMAIL</span>
           </div>
 
+=======
+>>>>>>> origin/main
           <form onSubmit={handleSubmit}>
             {error && (
               <div className="auth-error">
@@ -131,7 +152,10 @@ export default function LoginPage() {
                   value={email}
                   onChange={e => setEmail(e.target.value)}
                   required
+<<<<<<< HEAD
                   disabled={loading}
+=======
+>>>>>>> origin/main
                   autoComplete="email"
                 />
               </div>
@@ -152,7 +176,10 @@ export default function LoginPage() {
                   value={password}
                   onChange={e => setPassword(e.target.value)}
                   required
+<<<<<<< HEAD
                   disabled={loading}
+=======
+>>>>>>> origin/main
                   autoComplete="current-password"
                 />
                 <button
@@ -199,8 +226,13 @@ export default function LoginPage() {
             </button>
           </form>
 
+<<<<<<< HEAD
           <div className="auth-divider" style={{ margin: '20px 0 16px' }}>
             <span>NEW HERE?</span>
+=======
+          <div className="auth-divider">
+            <span>OR</span>
+>>>>>>> origin/main
           </div>
 
           <p className="auth-switch">
@@ -211,7 +243,11 @@ export default function LoginPage() {
 
         {/* Footer */}
         <p className="auth-footer fade-in-up fade-in-up-delay-2">
+<<<<<<< HEAD
           AI-Powered Financial Fraud Detection &amp; Risk Intelligence
+=======
+          AI-Powered Financial Fraud Detection & Risk Intelligence
+>>>>>>> origin/main
         </p>
       </div>
     </div>

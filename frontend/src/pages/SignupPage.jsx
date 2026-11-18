@@ -1,8 +1,14 @@
 import { useState } from 'react'
+<<<<<<< HEAD
 import { Link, useNavigate, Navigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { signupUserApi } from '../utils/api'
 import GoogleSignInButton from '../components/GoogleSignInButton'
+=======
+import { Link, useNavigate } from 'react-router-dom'
+import { useAuth } from '../context/AuthContext'
+import { signupUserApi } from '../utils/api'
+>>>>>>> origin/main
 
 export default function SignupPage() {
   const [name, setName] = useState('')
@@ -11,6 +17,7 @@ export default function SignupPage() {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
+<<<<<<< HEAD
   const { loginUser, user, loading: authLoading } = useAuth()
   const navigate = useNavigate()
 
@@ -19,10 +26,16 @@ export default function SignupPage() {
     return <Navigate to="/" replace />
   }
 
+=======
+  const { loginUser } = useAuth()
+  const navigate = useNavigate()
+
+>>>>>>> origin/main
   async function handleSubmit(e) {
     e.preventDefault()
     setError('')
 
+<<<<<<< HEAD
     const trimmedName = name.trim()
     const trimmedEmail = email.trim()
     if (!trimmedName) {
@@ -33,10 +46,13 @@ export default function SignupPage() {
       setError('Please enter a valid email address.')
       return
     }
+=======
+>>>>>>> origin/main
     if (password.length < 6) {
       setError('Password must be at least 6 characters')
       return
     }
+<<<<<<< HEAD
     if (password.length > 72) {
       setError('Password does not meet the requirements.')
       return
@@ -45,6 +61,12 @@ export default function SignupPage() {
     setLoading(true)
     try {
       const data = await signupUserApi(trimmedName, trimmedEmail, password)
+=======
+
+    setLoading(true)
+    try {
+      const data = await signupUserApi(name, email, password)
+>>>>>>> origin/main
       loginUser(data.access_token, data.user)
       navigate('/', { replace: true })
     } catch (err) {
@@ -95,6 +117,7 @@ export default function SignupPage() {
 
         {/* Form card */}
         <div className="auth-card fade-in-up fade-in-up-delay-1">
+<<<<<<< HEAD
 
           {/* ── Google Sign-Up ── */}
           <GoogleSignInButton
@@ -108,6 +131,8 @@ export default function SignupPage() {
             <span>OR SIGN UP WITH EMAIL</span>
           </div>
 
+=======
+>>>>>>> origin/main
           <form onSubmit={handleSubmit}>
             {error && (
               <div className="auth-error">
@@ -134,7 +159,10 @@ export default function SignupPage() {
                   value={name}
                   onChange={e => setName(e.target.value)}
                   required
+<<<<<<< HEAD
                   disabled={loading}
+=======
+>>>>>>> origin/main
                   autoComplete="name"
                 />
               </div>
@@ -154,7 +182,10 @@ export default function SignupPage() {
                   value={email}
                   onChange={e => setEmail(e.target.value)}
                   required
+<<<<<<< HEAD
                   disabled={loading}
+=======
+>>>>>>> origin/main
                   autoComplete="email"
                 />
               </div>
@@ -176,8 +207,11 @@ export default function SignupPage() {
                   onChange={e => setPassword(e.target.value)}
                   required
                   minLength={6}
+<<<<<<< HEAD
                   maxLength={72}
                   disabled={loading}
+=======
+>>>>>>> origin/main
                   autoComplete="new-password"
                 />
                 <button
@@ -226,8 +260,13 @@ export default function SignupPage() {
             </button>
           </form>
 
+<<<<<<< HEAD
           <div className="auth-divider" style={{ margin: '20px 0 16px' }}>
             <span>ALREADY HAVE AN ACCOUNT?</span>
+=======
+          <div className="auth-divider">
+            <span>OR</span>
+>>>>>>> origin/main
           </div>
 
           <p className="auth-switch">
@@ -238,7 +277,11 @@ export default function SignupPage() {
 
         {/* Footer */}
         <p className="auth-footer fade-in-up fade-in-up-delay-2">
+<<<<<<< HEAD
           AI-Powered Financial Fraud Detection &amp; Risk Intelligence
+=======
+          AI-Powered Financial Fraud Detection & Risk Intelligence
+>>>>>>> origin/main
         </p>
       </div>
     </div>

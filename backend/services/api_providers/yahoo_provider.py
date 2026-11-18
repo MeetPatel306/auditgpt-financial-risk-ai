@@ -1,11 +1,15 @@
 from __future__ import annotations
 
+<<<<<<< HEAD
 import logging
 from datetime import datetime
+=======
+>>>>>>> origin/main
 from typing import Any
 
 import yfinance as yf
 
+<<<<<<< HEAD
 logger = logging.getLogger("auditgpt.yahoo_provider")
 
 INCOME_REVENUE = ["Total Revenue", "Operating Revenue", "Revenue", "TotalRevenue"]
@@ -41,19 +45,26 @@ FREE_CASH_FLOW = [
     "FreeCashFlow",
 ]
 
+=======
+>>>>>>> origin/main
 
 def _safe_num(value: Any) -> float | None:
     try:
         if value is None:
             return None
         num = float(value)
+<<<<<<< HEAD
         if num != num or num in (float("inf"), float("-inf")):
+=======
+        if num != num:
+>>>>>>> origin/main
             return None
         return num
     except Exception:
         return None
 
 
+<<<<<<< HEAD
 def _period_year(col) -> int | None:
     year = getattr(col, "year", None)
     if isinstance(year, int) and 1990 <= year <= datetime.utcnow().year + 1:
@@ -136,11 +147,22 @@ def _collect_years(*frames) -> list[int]:
         for col in frame.columns:
             year = _period_year(col)
             if year:
+=======
+def _collect_years(*frames) -> list[int]:
+    years: set[int] = set()
+    for frame in frames:
+        if frame is None or frame.empty:
+            continue
+        for col in frame.columns:
+            year = getattr(col, "year", None)
+            if isinstance(year, int):
+>>>>>>> origin/main
                 years.add(year)
     return sorted(years, reverse=True)
 
 
 def _read_metric(frame, candidates: list[str], col) -> float | None:
+<<<<<<< HEAD
     if frame is None or getattr(frame, "empty", True) or col is None:
         return None
     index_map = {str(idx).strip().lower(): idx for idx in frame.index}
@@ -183,11 +205,43 @@ def fetch_financials(symbol: str, limit: int = 10) -> list[dict]:
         logger.info("yahoo_provider empty statements for %s", symbol)
         return []
 
+=======
+    if frame is None or frame.empty:
+        return None
+    for name in candidates:
+        if name in frame.index:
+            return _safe_num(frame.loc[name, col])
+    return None
+
+
+def fetch_financials(symbol: str, limit: int = 10) -> list[dict]:
+    """
+    Fetch annual financials from Yahoo in normalized format.
+    """
+    ticker = yf.Ticker(symbol)
+    income_stmt = ticker.income_stmt
+    balance_sheet = ticker.balance_sheet
+    cashflow_stmt = ticker.cashflow
+
+    years = _collect_years(income_stmt, balance_sheet, cashflow_stmt)[:limit]
+    if not years:
+        return []
+
+    def _col_for_year(frame, year: int):
+        if frame is None or frame.empty:
+            return None
+        for col in frame.columns:
+            if getattr(col, "year", None) == year:
+                return col
+        return None
+
+>>>>>>> origin/main
     out: list[dict] = []
     for year in years:
         inc_col = _col_for_year(income_stmt, year)
         bal_col = _col_for_year(balance_sheet, year)
         cf_col = _col_for_year(cashflow_stmt, year)
+<<<<<<< HEAD
         out.append(
             {
                 "year": year,
@@ -201,6 +255,29 @@ def fetch_financials(symbol: str, limit: int = 10) -> list[dict]:
                 "cashFlow": _read_metric(cashflow_stmt, CASH_FLOW, cf_col),
                 "freeCashFlow": _read_metric(cashflow_stmt, FREE_CASH_FLOW, cf_col),
                 "source_ticker": symbol,
+=======
+
+        revenue = _read_metric(income_stmt, ["Total Revenue", "Operating Revenue"], inc_col)
+        net_income = _read_metric(income_stmt, ["Net Income", "Net Income Common Stockholders"], inc_col)
+        ebitda = _read_metric(income_stmt, ["EBITDA"], inc_col)
+        assets = _read_metric(balance_sheet, ["Total Assets"], bal_col)
+        debt = _read_metric(balance_sheet, ["Total Debt", "Long Term Debt"], bal_col)
+        cash_flow = _read_metric(
+            cashflow_stmt,
+            ["Operating Cash Flow", "Cash Flow From Continuing Operating Activities"],
+            cf_col,
+        )
+
+        out.append(
+            {
+                "year": year,
+                "revenue": revenue,
+                "netIncome": net_income,
+                "ebitda": ebitda,
+                "assets": assets,
+                "debt": debt,
+                "cashFlow": cash_flow,
+>>>>>>> origin/main
             }
         )
     return out

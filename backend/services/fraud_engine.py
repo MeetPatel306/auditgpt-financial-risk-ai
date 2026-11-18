@@ -569,6 +569,7 @@ def _check_operational_red_flags(profit: list) -> list:
 # Master scoring function
 # ──────────────────────────────────────────────────────────────────────────────
 
+<<<<<<< HEAD
 def validate_risk_inputs(
     revenue: list,
     profit: list,
@@ -625,6 +626,8 @@ def validate_risk_inputs(
     }
 
 
+=======
+>>>>>>> origin/main
 def compute_fraud_score(
     revenue: list,
     profit: list,

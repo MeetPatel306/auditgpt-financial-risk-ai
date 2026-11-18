@@ -2,7 +2,11 @@ import { Navigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 
 export default function ProtectedRoute({ children }) {
+<<<<<<< HEAD
   const { user, token, loading, authError, logout } = useAuth()
+=======
+  const { user, loading } = useAuth()
+>>>>>>> origin/main
 
   if (loading) {
     return (
@@ -25,6 +29,7 @@ export default function ProtectedRoute({ children }) {
     )
   }
 
+<<<<<<< HEAD
   if (!user && token && authError) {
     return (
       <div className="min-h-screen grid-bg" style={{ background: 'var(--bg-primary)' }}>
@@ -57,6 +62,8 @@ export default function ProtectedRoute({ children }) {
     )
   }
 
+=======
+>>>>>>> origin/main
   if (!user) {
     return <Navigate to="/login" replace />
   }

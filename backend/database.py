@@ -1,4 +1,5 @@
 import os
+<<<<<<< HEAD
 import asyncio
 from pathlib import Path
 from motor.motor_asyncio import AsyncIOMotorClient
@@ -91,3 +92,18 @@ analyses_collection = _CollectionProxy("analyses")
 portfolios_collection = _CollectionProxy("portfolios")
 price_history_collection = _CollectionProxy("price_history")
 sync_jobs_collection = _CollectionProxy("sync_jobs")
+=======
+from motor.motor_asyncio import AsyncIOMotorClient
+from dotenv import load_dotenv
+
+load_dotenv()
+
+MONGODB_URL = os.getenv("MONGODB_URL", "mongodb://localhost:27017")
+DB_NAME = os.getenv("DB_NAME", "auditgpt")
+
+client = AsyncIOMotorClient(MONGODB_URL)
+db = client[DB_NAME]
+users_collection = db["users"]
+analyses_collection = db["analyses"]
+portfolios_collection = db["portfolios"]
+>>>>>>> origin/main

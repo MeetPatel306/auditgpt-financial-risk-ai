@@ -523,6 +523,7 @@ tr:last-child td {
   animation: spin 0.8s linear infinite;
 }
 
+<<<<<<< HEAD
 /* ── Google Sign-In Button ───────────────────────────────────── */
 .auth-google-btn {
   width: 100%;
@@ -572,6 +573,8 @@ tr:last-child td {
   flex-shrink: 0;
 }
 
+=======
+>>>>>>> origin/main
 @keyframes spin {
   to { transform: rotate(360deg); }
 }

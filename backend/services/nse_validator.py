@@ -29,11 +29,14 @@ SME_SERIES = {"SM", "ST", "SB"}
 # Common alias/renamed lookups for better search experience.
 SYMBOL_ALIASES = {
     "ZOMATO": "ETERNAL",
+<<<<<<< HEAD
     "RIL": "RELIANCE",
     "TATAMOTORS": "TMCV",
     "TATAMTRDVR": "TMCV",
     "TMCV": "TMCV",
     "TMPV": "TMPV",
+=======
+>>>>>>> origin/main
 }
 
 
@@ -44,6 +47,7 @@ def _load_nse_data():
         return
     with open(_nse_data_path, "r") as f:
         _nse_companies = json.load(f)
+<<<<<<< HEAD
 
     # Ensure special entities like TMCV and TMPV are present
     special_symbols = {
@@ -55,6 +59,8 @@ def _load_nse_data():
         if sym not in existing_symbols:
             _nse_companies.append(item)
 
+=======
+>>>>>>> origin/main
     _symbol_map = {c["symbol"].upper(): c for c in _nse_companies}
     _name_map   = {c["name"].lower(): c for c in _nse_companies}
 

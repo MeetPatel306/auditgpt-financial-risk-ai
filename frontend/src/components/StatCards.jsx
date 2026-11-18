@@ -14,6 +14,23 @@ function Trend({ value }) {
   )
 }
 
+<<<<<<< HEAD
+=======
+function latestByYear(values = [], years = []) {
+  let latest = null
+  let latestYear = -Infinity
+  values.forEach((value, index) => {
+    if (value == null) return
+    const year = Number(years[index])
+    if (Number.isFinite(year) && year >= latestYear) {
+      latest = value
+      latestYear = year
+    }
+  })
+  return latest
+}
+
+>>>>>>> origin/main
 export default function StatCards({ data }) {
   const { financials, company_info } = data
   const avgRisk = data.risk_categories
@@ -22,6 +39,10 @@ export default function StatCards({ data }) {
 
   // Compute revenue growth % YoY
   const rev = data.revenue_10y?.filter(v => v != null) || []
+<<<<<<< HEAD
+=======
+  const latestRevenue = financials?.total_revenue || latestByYear(data.revenue_10y, data.years)
+>>>>>>> origin/main
   const revGrowth = rev.length >= 2
     ? +((rev[rev.length - 1] - rev[rev.length - 2]) / Math.abs(rev[rev.length - 2]) * 100).toFixed(1)
     : null
@@ -48,7 +69,11 @@ export default function StatCards({ data }) {
     },
     {
       label: 'Revenue (Latest)',
+<<<<<<< HEAD
       value: formatCurrency(financials?.total_revenue),
+=======
+      value: formatCurrency(latestRevenue),
+>>>>>>> origin/main
       sub: `${financials?.periods_reviewed || 0}Y data`,
       trend: revGrowth,
       icon: '💹', accent: '#22c55e',

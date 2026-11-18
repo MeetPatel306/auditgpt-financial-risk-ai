@@ -13,12 +13,19 @@ import SearchBar from "../components/SearchBar";
 import AlertBanner from "../components/AlertBanner";
 import FraudScoreCard from "../components/FraudScoreCard";
 import StatCards from "../components/StatCards";
+<<<<<<< HEAD
+=======
+import LivePriceTicker from "../components/Livepriceticker";
+>>>>>>> origin/main
 import { analyzeCompany, getHistoryDetail, addToPortfolio } from "../utils/api";
 import { useAuth } from "../context/AuthContext";
 
 /* Lazy-load heavy sections */
 const RevenueChart = lazy(() => import("../components/RevenueChart"));
+<<<<<<< HEAD
 const HistoricalPriceChart = lazy(() => import("../components/HistoricalPriceChart"));
+=======
+>>>>>>> origin/main
 const RiskRadar = lazy(() => import("../components/RiskRadar"));
 const RedFlags = lazy(() => import("../components/RedFlags"));
 const AISummary = lazy(() => import("../components/AISummary"));
@@ -28,7 +35,11 @@ const PeerComparison = lazy(() => import("../components/PeerComparison"));
 const DownloadReportButton = lazy(
   () => import("../components/DownloadReportButton"),
 );
+<<<<<<< HEAD
 const LivePriceTicker = lazy(() => import("../components/LivePriceTicker"));
+=======
+
+>>>>>>> origin/main
 
 /* ── API result cache (session-scoped) ───────────────────────────── */
 const cache = new Map();
@@ -519,7 +530,10 @@ export default function Dashboard() {
   const [searchParams, setSearchParams] = useSearchParams();
   const { token } = useAuth();
   const [saveStatus, setSaveStatus] = useState(null); // null | 'saving' | 'saved' | 'error'
+<<<<<<< HEAD
   const [priceChartMeta, setPriceChartMeta] = useState(null);
+=======
+>>>>>>> origin/main
 
   /* Load from history if ?history=<id> is present */
   useEffect(() => {
@@ -530,7 +544,10 @@ export default function Dashboard() {
       setLoading(true);
       setError(null);
       setData(null);
+<<<<<<< HEAD
       setPriceChartMeta(null);
+=======
+>>>>>>> origin/main
       try {
         const record = await getHistoryDetail(token, historyId);
         const result = record.financial_data;
@@ -567,7 +584,10 @@ export default function Dashboard() {
       setLoading(true);
       setError(null);
       setData(null);
+<<<<<<< HEAD
       setPriceChartMeta(null);
+=======
+>>>>>>> origin/main
 
       const cacheKey = companyName.trim().toUpperCase();
       if (cache.has(cacheKey)) {
@@ -749,9 +769,12 @@ export default function Dashboard() {
                   ⚠ {data.data_warning || "Limited history available. Fraud score and financial charts are hidden for accuracy."}
                 </div>
               </div>
+<<<<<<< HEAD
               <Suspense fallback={<SkeletonCard height={64} />}>
                 <LivePriceTicker symbol={data.nse_symbol} companyName={data.company_name} />
               </Suspense>
+=======
+>>>>>>> origin/main
             </div>
           </div>
         )}
@@ -850,11 +873,17 @@ export default function Dashboard() {
                 </div>
 
                 {/* ─── Live Price strip (full-width, OUTSIDE the 2-col grid) ─── */}
+<<<<<<< HEAD
                 <div className="live-price-row">
                   <Suspense fallback={<SkeletonCard height={64} />}>
                     <LivePriceTicker symbol={data.nse_symbol} companyName={data.company_name} />
                   </Suspense>
                 </div>
+=======
+                {data.nse_symbol && (
+                  <LivePriceTicker symbol={data.nse_symbol} initialData={data.live_price} />
+                )}
+>>>>>>> origin/main
 
                 {/* ─── Score + Stats: 2-col grid (matches CSS) ─── */}
                 <div className="score-stats-grid">
@@ -938,6 +967,7 @@ export default function Dashboard() {
                 <SH
                   emoji="📈"
                   title="Financial Charts"
+<<<<<<< HEAD
                   subtitle={(() => {
                     const provider = (data.financial_data_sources || ["Yahoo Finance"]).join(" + ").toUpperCase();
                     if (priceChartMeta?.yearsAvailable && priceChartMeta?.startDate && priceChartMeta?.endDate) {
@@ -963,6 +993,11 @@ export default function Dashboard() {
                   />
                 </Suspense>
 
+=======
+                  subtitle={`${data.years?.length || 0} Years · ${(data.financial_data_sources || ["Yahoo"]).join(" + ").toUpperCase()}`}
+                  accent="#22c55e"
+                />
+>>>>>>> origin/main
                 <div className="chart-radar-grid">
                   <div className="chart-scroll-wrapper">
                     <div className="chart-min-width">
