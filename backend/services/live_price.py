@@ -471,6 +471,67 @@ def _fetch_from_yfinance(symbol: str, nse_error_code: str = "") -> dict:
         return {}
 
 
+# ── Screener.in Fallback ────────────────────────────────────────────────────────
+def _fetch_from_screener(symbol: str, nse_error_code: str = "") -> dict:
+    """
+    Last-resort price fallback: Screener.in profile price.
+
+    Works from datacenter/cloud IPs (e.g. Render) where BOTH NSE and Yahoo
+    Finance block server-side requests. No API key required. Provides a
+    current/last traded price only — no intraday OHLC, day change or volume.
+    """
+    try:
+        from services.api_providers import screener_provider
+        profile = screener_provider.fetch_profile(symbol)
+    except Exception as exc:
+        logger.warning(
+            "[live_price] Screener.in | Symbol: %s | Status: FAILED | Reason: %s",
+            symbol, str(exc)[:120],
+        )
+        return {}
+
+    if not profile:
+        return {}
+    price = _safe(profile.get("currentPrice"))
+    if price is None:
+        return {}
+
+    mkt_open = is_market_open()
+    company_name = profile.get("longName") or profile.get("shortName") or symbol.upper()
+    logger.info(
+        "[live_price] Screener.in | Provider: Screener | Symbol: %s | Status: SUCCESS | "
+        "Market State: %s", symbol, "OPEN" if mkt_open else "CLOSED",
+    )
+    return {
+        "symbol":         symbol.upper(),
+        "company_name":   company_name,
+        "live_price":     price,
+        "prev_close":     None,
+        "open":           None,
+        "day_change":     None,
+        "day_change_pct": None,
+        "day_high":       None,
+        "day_low":        None,
+        "week52_high":    _safe(profile.get("fiftyTwoWeekHigh")),
+        "week52_low":     _safe(profile.get("fiftyTwoWeekLow")),
+        "volume":         None,
+        "volume_ratio":   None,
+        "volume_anomaly": False,
+        "circuit_up":     None,
+        "circuit_down":   None,
+        "source":         "Screener.in",
+        "data_type":      "last_close",
+        "price_status":   "LAST AVAILABLE" if mkt_open else "PREVIOUS CLOSE",
+        "last_updated":   datetime.utcnow().isoformat() + "Z",
+        "market_status":  get_market_status(),
+        "fallback_note":  (
+            "Live market-data providers (NSE and Yahoo Finance) are blocked from the "
+            "server. Showing the latest available price from Screener.in."
+        ),
+        "nse_error_code": nse_error_code or "NSE_PROVIDER_UNAVAILABLE",
+    }
+
+
 # ── Public API ─────────────────────────────────────────────────────────────────
 def _mark_nse_blocked() -> None:
     global _nse_blocked_until
@@ -566,8 +627,15 @@ def get_live_price(symbol: str, force_refresh: bool = False) -> dict:
             _store_cache(symbol, data, success=True)
             return data
 
+        # Final fallback: Screener.in — works from datacenter IPs where both
+        # NSE and Yahoo are blocked (e.g. Render production).
+        data = _fetch_from_screener(symbol, nse_error_code=nse_error_code)
+        if data:
+            _store_cache(symbol, data, success=True)
+            return data
+
         logger.error(
-            "[live_price] NO_MARKET_DATA | Both NSE and Yahoo Finance failed for symbol: %s",
+            "[live_price] NO_MARKET_DATA | NSE, Yahoo Finance and Screener all failed for symbol: %s",
             symbol,
         )
         empty = {
