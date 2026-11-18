@@ -124,31 +124,3 @@ app.include_router(market_data.router,        prefix="/api")
 @app.get("/")
 def root():
     return {"status": "AuditGPT API running", "version": "1.0.0"}
-
-
-@app.get("/api/_diag")
-def _diag(symbol: str = "RELIANCE"):
-    """Temporary diagnostic: deploy commit + Screener probe + full fetch path."""
-    from services.api_providers import screener_provider
-    from services import yahoo_finance
-    out = {"build_commit": os.getenv("RENDER_GIT_COMMIT", "unknown"), "symbol": symbol}
-    # 1) direct screener profile
-    try:
-        prof = screener_provider.fetch_profile(symbol) or {}
-        out["screener_marketCap"] = prof.get("marketCap")
-        out["screener_trailingPE"] = prof.get("trailingPE")
-        out["screener_roe"] = prof.get("returnOnEquity")
-    except Exception as exc:  # noqa: BLE001
-        out["screener_error"] = str(exc)[:300]
-    # 2) full fetch_company_data path (what analyze uses)
-    try:
-        res = yahoo_finance.fetch_company_data(symbol)
-        ci = res.get("company_info", {}) or {}
-        out["cd_resolved_symbol"] = res.get("resolved_symbol")
-        out["cd_market_cap"] = ci.get("market_cap")
-        out["cd_pe_ratio"] = ci.get("pe_ratio")
-        out["cd_roe"] = ci.get("roe")
-        out["cd_data_quality"] = res.get("data_quality")
-    except Exception as exc:  # noqa: BLE001
-        out["cd_error"] = str(exc)[:300]
-    return out
