@@ -62,7 +62,15 @@ def _extract_title(html: str, symbol: str) -> str:
     match = re.search(r'<h1[^>]*>(.*?)</h1>', html, flags=re.S)
     if not match:
         return symbol
-    return unescape(re.sub(r"<.*?>", "", match.group(1))).strip() or symbol
+    # Strip ALL tags including multi-line ones (Screener's logo <span>/<img> span
+    # several lines, so a non-DOTALL `<.*?>` leaves the markup behind). Then
+    # collapse whitespace to get the clean company name.
+    text = unescape(re.sub(r"<[^>]*>", "", match.group(1), flags=re.S))
+    text = re.sub(r"\s+", " ", text).strip()
+    # Guard: never return leftover markup as a name.
+    if not text or "<" in text or ">" in text:
+        return symbol
+    return text
 
 
 def _extract_classification(html: str, title: str) -> str | None:

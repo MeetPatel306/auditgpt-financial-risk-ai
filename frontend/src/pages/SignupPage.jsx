@@ -2,7 +2,6 @@ import { useState } from 'react'
 import { Link, useNavigate, Navigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { signupUserApi } from '../utils/api'
-import GoogleSignInButton from '../components/GoogleSignInButton'
 
 export default function SignupPage() {
   const [name, setName] = useState('')
@@ -95,18 +94,6 @@ export default function SignupPage() {
 
         {/* Form card */}
         <div className="auth-card fade-in-up fade-in-up-delay-1">
-
-          {/* ── Google Sign-Up ── */}
-          <GoogleSignInButton
-            label="Sign up with Google"
-            textType="signup_with"
-            disabled={loading}
-            onError={setError}
-          />
-
-          <div className="auth-divider">
-            <span>OR SIGN UP WITH EMAIL</span>
-          </div>
 
           <form onSubmit={handleSubmit}>
             {error && (
