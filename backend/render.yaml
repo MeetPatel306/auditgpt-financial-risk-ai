@@ -2,7 +2,7 @@ services:
   - type: web
     name: auditgpt-backend
     runtime: python
-    buildCommand: pip install --upgrade pip setuptools wheel --no-cache-dir && pip install --only-binary :all: --no-cache-dir -r requirements.txt
+    buildCommand: pip install --upgrade pip setuptools wheel --no-cache-dir && pip install --no-cache-dir -r requirements.txt
     startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
     envVars:
       - key: PYTHON_VERSION
