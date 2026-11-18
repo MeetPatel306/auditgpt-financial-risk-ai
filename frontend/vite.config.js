@@ -13,19 +13,13 @@ export default defineConfig({
       '/auth': {
         target: 'http://localhost:8000',
         changeOrigin: true,
+        bypass(req) {
+          // Let the React app handle the OAuth redirect page.
+          if (req.url && req.url.startsWith('/auth/google/callback')) {
+            return '/index.html'
+          }
+        },
       }
     }
   },
-  build: {
-    rollupOptions: {
-      output: {
-        manualChunks: {
-          vendor: ['react', 'react-dom', 'react-router-dom'],
-          framer: ['framer-motion'],
-          charts: ['recharts'],
-        }
-      }
-    },
-    chunkSizeWarningLimit: 1000
-  }
 })

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { getRiskConfig } from '../utils/format'
-import ScoreExplainerModal from './Scoreexplainermodal'
+import ScoreExplainerModal from './ScoreExplainerModal'
 
 export default function FraudScoreCard({ data }) {
   const [animated,    setAnimated]    = useState(false)

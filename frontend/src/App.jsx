@@ -7,6 +7,7 @@ import Dashboard from './pages/Dashboard'
 import PortfolioPage from './pages/PortfolioPage'
 import SavedPortfolioPage from './pages/SavedPortfolioPage'
 import HistoryPage from './pages/HistoryPage'
+import GoogleCallbackPage from './pages/GoogleCallbackPage'
 
 export default function App() {
   return (
@@ -14,6 +15,8 @@ export default function App() {
       <Routes>
         <Route path="/login" element={<LoginPage />} />
         <Route path="/signup" element={<SignupPage />} />
+        {/* Google OAuth 2.0 redirect target – must be public */}
+        <Route path="/auth/google/callback" element={<GoogleCallbackPage />} />
         <Route
           path="/"
           element={

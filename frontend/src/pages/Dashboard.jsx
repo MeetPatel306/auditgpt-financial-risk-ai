@@ -13,12 +13,12 @@ import SearchBar from "../components/SearchBar";
 import AlertBanner from "../components/AlertBanner";
 import FraudScoreCard from "../components/FraudScoreCard";
 import StatCards from "../components/StatCards";
-import LivePriceTicker from "../components/Livepriceticker";
 import { analyzeCompany, getHistoryDetail, addToPortfolio } from "../utils/api";
 import { useAuth } from "../context/AuthContext";
 
 /* Lazy-load heavy sections */
 const RevenueChart = lazy(() => import("../components/RevenueChart"));
+const HistoricalPriceChart = lazy(() => import("../components/HistoricalPriceChart"));
 const RiskRadar = lazy(() => import("../components/RiskRadar"));
 const RedFlags = lazy(() => import("../components/RedFlags"));
 const AISummary = lazy(() => import("../components/AISummary"));
@@ -28,7 +28,7 @@ const PeerComparison = lazy(() => import("../components/PeerComparison"));
 const DownloadReportButton = lazy(
   () => import("../components/DownloadReportButton"),
 );
-
+const LivePriceTicker = lazy(() => import("../components/LivePriceTicker"));
 
 /* ── API result cache (session-scoped) ───────────────────────────── */
 const cache = new Map();
@@ -519,6 +519,7 @@ export default function Dashboard() {
   const [searchParams, setSearchParams] = useSearchParams();
   const { token } = useAuth();
   const [saveStatus, setSaveStatus] = useState(null); // null | 'saving' | 'saved' | 'error'
+  const [priceChartMeta, setPriceChartMeta] = useState(null);
 
   /* Load from history if ?history=<id> is present */
   useEffect(() => {
@@ -529,6 +530,7 @@ export default function Dashboard() {
       setLoading(true);
       setError(null);
       setData(null);
+      setPriceChartMeta(null);
       try {
         const record = await getHistoryDetail(token, historyId);
         const result = record.financial_data;
@@ -565,6 +567,7 @@ export default function Dashboard() {
       setLoading(true);
       setError(null);
       setData(null);
+      setPriceChartMeta(null);
 
       const cacheKey = companyName.trim().toUpperCase();
       if (cache.has(cacheKey)) {
@@ -746,6 +749,9 @@ export default function Dashboard() {
                   ⚠ {data.data_warning || "Limited history available. Fraud score and financial charts are hidden for accuracy."}
                 </div>
               </div>
+              <Suspense fallback={<SkeletonCard height={64} />}>
+                <LivePriceTicker symbol={data.nse_symbol} companyName={data.company_name} />
+              </Suspense>
             </div>
           </div>
         )}
@@ -844,9 +850,11 @@ export default function Dashboard() {
                 </div>
 
                 {/* ─── Live Price strip (full-width, OUTSIDE the 2-col grid) ─── */}
-                {data.nse_symbol && (
-                  <LivePriceTicker symbol={data.nse_symbol} initialData={data.live_price} />
-                )}
+                <div className="live-price-row">
+                  <Suspense fallback={<SkeletonCard height={64} />}>
+                    <LivePriceTicker symbol={data.nse_symbol} companyName={data.company_name} />
+                  </Suspense>
+                </div>
 
                 {/* ─── Score + Stats: 2-col grid (matches CSS) ─── */}
                 <div className="score-stats-grid">
@@ -930,9 +938,31 @@ export default function Dashboard() {
                 <SH
                   emoji="📈"
                   title="Financial Charts"
-                  subtitle={`${data.years?.length || 0} Years · ${(data.financial_data_sources || ["Yahoo"]).join(" + ").toUpperCase()}`}
+                  subtitle={(() => {
+                    const provider = (data.financial_data_sources || ["Yahoo Finance"]).join(" + ").toUpperCase();
+                    if (priceChartMeta?.yearsAvailable && priceChartMeta?.startDate && priceChartMeta?.endDate) {
+                      const yrs = priceChartMeta.yearsAvailable >= 9.5 ? "10 Years" : `${priceChartMeta.yearsAvailable} Years`;
+                      const sYear = priceChartMeta.startDate.slice(0, 4);
+                      const eYear = priceChartMeta.endDate.slice(0, 4);
+                      return `${yrs} · ${sYear}–${eYear} · ${provider}`;
+                    }
+                    if (data.years?.length) {
+                      const sYear = data.years[0];
+                      const eYear = data.years[data.years.length - 1];
+                      return `${data.years.length} Years · ${sYear}–${eYear} · ${provider}`;
+                    }
+                    return `Market & Financial History · ${provider}`;
+                  })()}
                   accent="#22c55e"
                 />
+                {/* 10-Year Historical Market Price Chart */}
+                <Suspense fallback={<SkeletonCard height={280} />}>
+                  <HistoricalPriceChart
+                    symbol={data.nse_symbol || data.company_name}
+                    onRangeChange={setPriceChartMeta}
+                  />
+                </Suspense>
+
                 <div className="chart-radar-grid">
                   <div className="chart-scroll-wrapper">
                     <div className="chart-min-width">

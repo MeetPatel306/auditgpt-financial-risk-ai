@@ -9,6 +9,8 @@ from dataclasses import dataclass
 class ProviderSymbols:
     nse: str
     yahoo: str
+    fmp: str
+    alpha: str
 
 
 def map_symbol(raw_symbol: str) -> ProviderSymbols:
@@ -19,4 +21,6 @@ def map_symbol(raw_symbol: str) -> ProviderSymbols:
     return ProviderSymbols(
         nse=f"NSE:{base}",
         yahoo=f"{base}.NS",
+        fmp=base,
+        alpha=f"NSE:{base}",
     )

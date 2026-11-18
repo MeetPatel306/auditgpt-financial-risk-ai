@@ -106,6 +106,24 @@ export default function PeerComparison({ comparison }) {
       data: makeChartData('debt_ratio'),
       fmt: v => `${v}x`,
     },
+    fcf: {
+      label: 'Free Cash Flow',
+      subtitle: 'Latest free cash flow (₹)',
+      data: makeChartData('latest_fcf'),
+      fmt: v => formatCurrency(v),
+    },
+    growth: {
+      label: 'Revenue Growth',
+      subtitle: 'Multi-year historical revenue growth (%)',
+      data: makeChartData('revenue_growth'),
+      fmt: v => `${v}%`,
+    },
+    margin: {
+      label: 'Profit Margin',
+      subtitle: 'Net profit margin (%)',
+      data: makeChartData('profit_margin'),
+      fmt: v => `${v}%`,
+    },
   }
 
   const chart = CHARTS[activeChart]

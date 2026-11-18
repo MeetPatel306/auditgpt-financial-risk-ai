@@ -569,6 +569,62 @@ def _check_operational_red_flags(profit: list) -> list:
 # Master scoring function
 # ──────────────────────────────────────────────────────────────────────────────
 
+def validate_risk_inputs(
+    revenue: list,
+    profit: list,
+    debt: list,
+    cashflow: list,
+    min_years: int = 2,
+) -> dict:
+    """
+    Check whether the current fraud engine has enough usable history.
+    Does not treat missing values as zero.
+    """
+    series = {
+        "revenue": revenue or [],
+        "profit": profit or [],
+        "debt": debt or [],
+        "cashflow": cashflow or [],
+    }
+    usable = {name: _valid(values) for name, values in series.items()}
+    missing_series = [name for name, values in usable.items() if not values]
+    revenue_years = len(usable["revenue"])
+    profit_years = len(usable["profit"])
+    history_years = max(revenue_years, profit_years, len(usable["debt"]), len(usable["cashflow"]), 0)
+
+    if not usable["revenue"] and not usable["profit"]:
+        status = "unavailable"
+        reason = "Revenue and net income are both missing, so a fraud score cannot be computed."
+    elif history_years < min_years:
+        status = "limited"
+        reason = (
+            f"Only {history_years} usable year(s) of financial history were found; "
+            f"the model is more reliable with at least {min_years} years."
+        )
+    elif missing_series:
+        status = "limited"
+        reason = "Analysis can run, but these series are missing: " + ", ".join(missing_series) + "."
+    else:
+        status = "ok"
+        reason = None
+
+    finite_ok = True
+    for values in usable.values():
+        for val in values:
+            if val != val or val in (float("inf"), float("-inf")):
+                finite_ok = False
+
+    return {
+        "status": status,
+        "reason": reason,
+        "missing_series": missing_series,
+        "history_years": history_years,
+        "usable_counts": {k: len(v) for k, v in usable.items()},
+        "finite": finite_ok,
+        "can_score": status in {"ok", "limited"} and finite_ok,
+    }
+
+
 def compute_fraud_score(
     revenue: list,
     profit: list,

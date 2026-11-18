@@ -1,7 +1,8 @@
 import { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, Navigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { signupUserApi } from '../utils/api'
+import GoogleSignInButton from '../components/GoogleSignInButton'
 
 export default function SignupPage() {
   const [name, setName] = useState('')
@@ -10,21 +11,40 @@ export default function SignupPage() {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
-  const { loginUser } = useAuth()
+  const { loginUser, user, loading: authLoading } = useAuth()
   const navigate = useNavigate()
+
+  // Redirect already-authenticated users to dashboard
+  if (!authLoading && user) {
+    return <Navigate to="/" replace />
+  }
 
   async function handleSubmit(e) {
     e.preventDefault()
     setError('')
 
+    const trimmedName = name.trim()
+    const trimmedEmail = email.trim()
+    if (!trimmedName) {
+      setError('Full name is required.')
+      return
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) {
+      setError('Please enter a valid email address.')
+      return
+    }
     if (password.length < 6) {
       setError('Password must be at least 6 characters')
+      return
+    }
+    if (password.length > 72) {
+      setError('Password does not meet the requirements.')
       return
     }
 
     setLoading(true)
     try {
-      const data = await signupUserApi(name, email, password)
+      const data = await signupUserApi(trimmedName, trimmedEmail, password)
       loginUser(data.access_token, data.user)
       navigate('/', { replace: true })
     } catch (err) {
@@ -75,6 +95,19 @@ export default function SignupPage() {
 
         {/* Form card */}
         <div className="auth-card fade-in-up fade-in-up-delay-1">
+
+          {/* ── Google Sign-Up ── */}
+          <GoogleSignInButton
+            label="Sign up with Google"
+            textType="signup_with"
+            disabled={loading}
+            onError={setError}
+          />
+
+          <div className="auth-divider">
+            <span>OR SIGN UP WITH EMAIL</span>
+          </div>
+
           <form onSubmit={handleSubmit}>
             {error && (
               <div className="auth-error">
@@ -101,6 +134,7 @@ export default function SignupPage() {
                   value={name}
                   onChange={e => setName(e.target.value)}
                   required
+                  disabled={loading}
                   autoComplete="name"
                 />
               </div>
@@ -120,6 +154,7 @@ export default function SignupPage() {
                   value={email}
                   onChange={e => setEmail(e.target.value)}
                   required
+                  disabled={loading}
                   autoComplete="email"
                 />
               </div>
@@ -141,6 +176,8 @@ export default function SignupPage() {
                   onChange={e => setPassword(e.target.value)}
                   required
                   minLength={6}
+                  maxLength={72}
+                  disabled={loading}
                   autoComplete="new-password"
                 />
                 <button
@@ -189,8 +226,8 @@ export default function SignupPage() {
             </button>
           </form>
 
-          <div className="auth-divider">
-            <span>OR</span>
+          <div className="auth-divider" style={{ margin: '20px 0 16px' }}>
+            <span>ALREADY HAVE AN ACCOUNT?</span>
           </div>
 
           <p className="auth-switch">
@@ -201,7 +238,7 @@ export default function SignupPage() {
 
         {/* Footer */}
         <p className="auth-footer fade-in-up fade-in-up-delay-2">
-          AI-Powered Financial Fraud Detection & Risk Intelligence
+          AI-Powered Financial Fraud Detection &amp; Risk Intelligence
         </p>
       </div>
     </div>
