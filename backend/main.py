@@ -124,3 +124,21 @@ app.include_router(market_data.router,        prefix="/api")
 @app.get("/")
 def root():
     return {"status": "AuditGPT API running", "version": "1.0.0"}
+
+
+@app.get("/api/_diag")
+def _diag(symbol: str = "RELIANCE"):
+    """Temporary diagnostic: reports deployed commit and probes Screener from the server."""
+    from services.api_providers import screener_provider
+    err = None
+    profile = None
+    try:
+        profile = screener_provider.fetch_profile(symbol)
+    except Exception as exc:  # noqa: BLE001
+        err = str(exc)[:300]
+    return {
+        "build_commit": os.getenv("RENDER_GIT_COMMIT", "unknown"),
+        "screener_reachable": bool(profile),
+        "screener_error": err,
+        "screener_profile": profile,
+    }
