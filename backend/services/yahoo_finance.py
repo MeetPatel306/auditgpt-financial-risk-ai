@@ -17,8 +17,20 @@ from services.peer_comparison import build_comparison
 from services.fraud_engine import compute_fraud_score, validate_risk_inputs
 from services.auditor_sentiment import analyze_auditor_sentiment
 from services.financial_service import get_company_financials
+from services.api_providers import screener_provider
 
 logger = logging.getLogger("auditgpt.yahoo_finance")
+
+
+def _merge_missing_info(primary: dict, fallback: dict) -> dict:
+    """Fill missing/empty keys in `primary` (Yahoo info) from `fallback` (Screener)."""
+    merged = dict(primary or {})
+    for key, value in (fallback or {}).items():
+        if key == "source":
+            continue
+        if merged.get(key) in (None, "", "N/A") and value not in (None, "", "N/A"):
+            merged[key] = value
+    return merged
 
 
 # ── FIX 1: DVR Symbol Map ─────────────────────────────────────────────────────
@@ -170,6 +182,15 @@ def fetch_company_data(nse_symbol: str, resolved: dict | None = None) -> dict:
 
     # --- Company Info ---
     info = ticker.info or {}
+    # Yahoo is frequently blocked from datacenter/cloud IPs (e.g. Render), which
+    # leaves market cap, P/E, ROE and price empty. Fill any missing profile
+    # fields from Screener.in (works server-side, no API key required).
+    try:
+        screener_profile = screener_provider.fetch_profile(resolved_symbol)
+        if screener_profile:
+            info = _merge_missing_info(info, screener_profile)
+    except Exception:
+        logger.warning("Screener profile fallback failed for %s", resolved_symbol, exc_info=True)
 
     company_name    = (
         resolved.get("company_name")

@@ -6,7 +6,7 @@ import time
 from datetime import datetime, timedelta
 from typing import Any, Callable
 
-from services.api_providers import alpha_provider, fmp_provider, yahoo_provider
+from services.api_providers import alpha_provider, fmp_provider, screener_provider, yahoo_provider
 from utils.symbol_mapper import map_symbol
 
 logger = logging.getLogger("auditgpt.financial_service")
@@ -242,8 +242,9 @@ def get_company_financials(
                     _call_provider("yahoo", lambda: _fetch_yahoo(yahoo_tried, limit=2), errors),
                     _call_provider("fmp", lambda: fmp_provider.fetch_financials(mapped.fmp, limit=2), errors),
                     _call_provider("alpha", lambda: alpha_provider.fetch_financials(mapped.alpha, limit=2), errors),
+                    _call_provider("screener", lambda: screener_provider.fetch_financials(mapped.nse, limit=2), errors),
                 ]
-                latest_merged, _ = _merge_by_priority(latest_rows, ["yahoo", "fmp", "alpha"], max_years=2)
+                latest_merged, _ = _merge_by_priority(latest_rows, ["yahoo", "fmp", "alpha", "screener"], max_years=2)
                 latest = _extract_latest(latest_merged)
                 refreshed_rows = _upsert_latest(payload["financials"], latest)
                 refreshed = dict(payload)
@@ -261,8 +262,9 @@ def get_company_financials(
             _call_provider("yahoo", lambda: _fetch_yahoo(yahoo_tried, limit=max_years), errors),
             _call_provider("fmp", lambda: fmp_provider.fetch_financials(mapped.fmp, limit=max_years), errors),
             _call_provider("alpha", lambda: alpha_provider.fetch_financials(mapped.alpha, limit=max_years), errors),
+            _call_provider("screener", lambda: screener_provider.fetch_financials(mapped.nse, limit=max_years), errors),
         ]
-        merged, provenance = _merge_by_priority(rows_list, ["yahoo", "fmp", "alpha"], max_years=max_years)
+        merged, provenance = _merge_by_priority(rows_list, ["yahoo", "fmp", "alpha", "screener"], max_years=max_years)
         payload = _payload(symbol, mapped, merged, provenance, errors, yahoo_tried, "full-refresh")
         _CACHE[cache_key] = {"updated_at": now, "payload": payload}
         return payload
