@@ -474,11 +474,9 @@ def _fetch_from_yfinance(symbol: str, nse_error_code: str = "") -> dict:
 # ── Screener.in Fallback ────────────────────────────────────────────────────────
 def _fetch_from_screener(symbol: str, nse_error_code: str = "") -> dict:
     """
-    Last-resort price fallback: Screener.in profile price.
-
-    Works from datacenter/cloud IPs (e.g. Render) where BOTH NSE and Yahoo
-    Finance block server-side requests. No API key required. Provides a
-    current/last traded price only — no intraday OHLC, day change or volume.
+    Last-resort price fallback: Screener.in profile price. Works from
+    datacenter/cloud IPs (e.g. Render) where BOTH NSE and Yahoo block
+    server-side requests. No API key required. Current/last price only.
     """
     try:
         from services.api_providers import screener_provider

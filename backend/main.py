@@ -91,10 +91,9 @@ allowed_origins = (
     else ["http://localhost:5173", "http://localhost:3000", "http://127.0.0.1:5173"]
 )
 
-# Allow any Vercel deployment URL (production + preview deploys get new
-# hashed subdomains each time) plus localhost, without reconfiguring on every
-# deploy. Override/extend with the CORS_ORIGINS env var for custom domains.
-# A custom regex can be supplied via CORS_ORIGIN_REGEX.
+# Allow any Vercel deployment URL (production + preview deploys get new hashed
+# subdomains each time) plus localhost, without reconfiguring on every deploy.
+# Override with CORS_ORIGIN_REGEX for custom domains.
 cors_origin_regex = os.getenv(
     "CORS_ORIGIN_REGEX",
     r"https://.*\.vercel\.app|http://localhost(:\d+)?",
