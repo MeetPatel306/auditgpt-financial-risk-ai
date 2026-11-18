@@ -51,20 +51,20 @@ export default function LivePriceTicker({ symbol, companyName: defaultCompanyNam
     [symbol]
   )
 
-  // Primary fetch and adaptive interval polling
+  // Primary fetch + polling. NOTE: this effect must NOT depend on priceData,
+  // or it would loop forever — it resets priceData, which would change the
+  // dependency and re-trigger the effect on every fetch (the ticker then never
+  // leaves its loading skeleton). It re-runs only when the symbol changes.
   useEffect(() => {
+    if (!symbol) return
     setLoading(true)
     setPriceData(null)
     setError(null)
     fetchPrice(false)
 
-    // Clear existing timer if any
     if (timerRef.current) clearInterval(timerRef.current)
-
-    // Determine polling interval based on market status
-    const isOpen = priceData?.market_status?.is_open
-    const intervalMs = isOpen ? REFRESH_INTERVAL_OPEN : REFRESH_INTERVAL_CLOSED
-
+    // Poll on a fixed interval; each response carries its own freshness label.
+    const intervalMs = isMarketOpen ? REFRESH_INTERVAL_OPEN : REFRESH_INTERVAL_CLOSED
     timerRef.current = setInterval(() => {
       fetchPrice(false)
     }, intervalMs)
@@ -72,7 +72,8 @@ export default function LivePriceTicker({ symbol, companyName: defaultCompanyNam
     return () => {
       if (timerRef.current) clearInterval(timerRef.current)
     }
-  }, [fetchPrice, priceData?.market_status?.is_open])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [symbol, fetchPrice])
 
   // Price direction calculations
   const change = priceData?.day_change
