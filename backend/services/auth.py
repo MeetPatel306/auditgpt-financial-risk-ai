@@ -1,8 +1,8 @@
 import logging
 import os
 from datetime import datetime, timedelta, timezone
+import bcrypt
 from jose import JWTError, jwt
-from passlib.context import CryptContext
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from database import users_collection
@@ -15,24 +15,25 @@ JWT_ALGORITHM = "HS256"
 JWT_EXPIRATION_HOURS = 24
 BCRYPT_MAX_BYTES = 72
 
-# Password hashing context
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-
 # Bearer token scheme — missing credentials should be 401, not 403
 security = HTTPBearer(auto_error=False)
 
 
 def hash_password(password: str) -> str:
-    if len(password.encode("utf-8")) > BCRYPT_MAX_BYTES:
+    pw = password.encode("utf-8")
+    if len(pw) > BCRYPT_MAX_BYTES:
         raise ValueError("Password is too long")
-    return pwd_context.hash(password)
+    return bcrypt.hashpw(pw, bcrypt.gensalt()).decode("utf-8")
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     if not hashed_password:
         return False
     try:
-        return pwd_context.verify(plain_password, hashed_password)
+        return bcrypt.checkpw(
+            plain_password.encode("utf-8"),
+            hashed_password.encode("utf-8"),
+        )
     except Exception:
         logger.exception("Password verification failed")
         return False
